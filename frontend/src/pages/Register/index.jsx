@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import api from "../../api/api";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -8,13 +9,23 @@ const Register = () => {
     password: '',
     confirmPassword: ''
   });
+
   const [interests, setInterests] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const interestOptions = ['Career', 'Technology', 'Finance', 'Travel', 'Lifestyle'];
+  const interestOptions = [
+    'Career',
+    'Technology',
+    'Finance',
+    'Travel',
+    'Lifestyle'
+  ];
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.id]: e.target.value });
+    setFormData({
+      ...formData,
+      [e.target.id]: e.target.value
+    });
   };
 
   const toggleInterest = (interest) => {
@@ -25,62 +36,252 @@ const Register = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (formData.password !== formData.confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
+
     setIsSubmitting(true);
-    setTimeout(() => {
+
+    try {
+      const response = await api.post("/api/auth/register", {
+  username: formData.fullName,
+  email: formData.email,
+  password: formData.password
+});
+      
+
+      console.log(response.data);
+      alert("Registration Successful!");
+
+      setFormData({
+        fullName: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
+      });
+
+      setInterests([]);
+
+    } catch (error) {
+      console.error(error);
+
+      if (error.response) {
+        alert(error.response.data.message || "Registration Failed");
+      } else {
+        alert("Unable to connect to server");
+      }
+    } finally {
       setIsSubmitting(false);
-      console.log('Signup submitted:', { ...formData, interests });
-    }, 1500);
+    }
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', padding: '100px 20px 40px 20px' }}>
-      <div className="glass-panel" style={{ width: '100%', maxWidth: '500px', padding: '40px', borderRadius: '24px' }}>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        padding: '100px 20px 40px 20px'
+      }}
+    >
+      <div
+        className="glass-panel"
+        style={{
+          width: '100%',
+          maxWidth: '500px',
+          padding: '40px',
+          borderRadius: '24px'
+        }}
+      >
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h2 className="text-gradient" style={{ fontSize: '2rem', marginBottom: '10px' }}>Create Account</h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Join the network and start making decisions.</p>
+          <h2
+            className="text-gradient"
+            style={{ fontSize: '2rem', marginBottom: '10px' }}
+          >
+            Create Account
+          </h2>
+
+          <p style={{ color: 'var(--text-secondary)' }}>
+            Join the network and start making decisions.
+          </p>
         </div>
-        
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px'
+          }}
+        >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label htmlFor="fullName" style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: '500' }}>Full Name</label>
-            <input 
-              type="text" id="fullName" value={formData.fullName} onChange={handleChange} placeholder="Neo" required 
-              style={{ padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', outline: 'none', transition: 'border 0.2s', width: '100%' }}
-              onFocus={(e) => e.target.style.border = '1px solid var(--neon-cyan)'} onBlur={(e) => e.target.style.border = '1px solid var(--glass-border)'}
+            <label
+              htmlFor="fullName"
+              style={{
+                fontSize: '0.9rem',
+                color: 'var(--text-primary)',
+                fontWeight: '500'
+              }}
+            >
+              Full Name
+            </label>
+
+            <input
+              type="text"
+              id="fullName"
+              value={formData.fullName}
+              onChange={handleChange}
+              placeholder="Neo"
+              required
+              style={{
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: '1px solid var(--glass-border)',
+                background: 'var(--input-bg)',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                transition: 'border 0.2s',
+                width: '100%'
+              }}
+              onFocus={(e) =>
+                (e.target.style.border = '1px solid var(--neon-cyan)')
+              }
+              onBlur={(e) =>
+                (e.target.style.border = '1px solid var(--glass-border)')
+              }
             />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label htmlFor="email" style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: '500' }}>Email</label>
-            <input 
-              type="email" id="email" value={formData.email} onChange={handleChange} placeholder="neo@matrix.com" required 
-              style={{ padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', outline: 'none', transition: 'border 0.2s', width: '100%' }}
-              onFocus={(e) => e.target.style.border = '1px solid var(--neon-cyan)'} onBlur={(e) => e.target.style.border = '1px solid var(--glass-border)'}
-            />
-          </div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label htmlFor="password" style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: '500' }}>Password</label>
-            <input 
-              type="password" id="password" value={formData.password} onChange={handleChange} placeholder="••••••••" required 
-              style={{ padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', outline: 'none', transition: 'border 0.2s', width: '100%' }}
-              onFocus={(e) => e.target.style.border = '1px solid var(--neon-cyan)'} onBlur={(e) => e.target.style.border = '1px solid var(--glass-border)'}
+            <label
+              htmlFor="email"
+              style={{
+                fontSize: '0.9rem',
+                color: 'var(--text-primary)',
+                fontWeight: '500'
+              }}
+            >
+              Email
+            </label>
+
+            <input
+              type="email"
+              id="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="neo@matrix.com"
+              required
+              style={{
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: '1px solid var(--glass-border)',
+                background: 'var(--input-bg)',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                transition: 'border 0.2s',
+                width: '100%'
+              }}
+              onFocus={(e) =>
+                (e.target.style.border = '1px solid var(--neon-cyan)')
+              }
+              onBlur={(e) =>
+                (e.target.style.border = '1px solid var(--glass-border)')
+              }
             />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label htmlFor="confirmPassword" style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: '500' }}>Confirm Password</label>
-            <input 
-              type="password" id="confirmPassword" value={formData.confirmPassword} onChange={handleChange} placeholder="••••••••" required 
-              style={{ padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', outline: 'none', transition: 'border 0.2s', width: '100%' }}
-              onFocus={(e) => e.target.style.border = '1px solid var(--neon-cyan)'} onBlur={(e) => e.target.style.border = '1px solid var(--glass-border)'}
+            <label
+              htmlFor="password"
+              style={{
+                fontSize: '0.9rem',
+                color: 'var(--text-primary)',
+                fontWeight: '500'
+              }}
+            >
+              Password
+            </label>
+
+            <input
+              type="password"
+              id="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="••••••••"
+              required
+              style={{
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: '1px solid var(--glass-border)',
+                background: 'var(--input-bg)',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                transition: 'border 0.2s',
+                width: '100%'
+              }}
+              onFocus={(e) =>
+                (e.target.style.border = '1px solid var(--neon-cyan)')
+              }
+              onBlur={(e) =>
+                (e.target.style.border = '1px solid var(--glass-border)')
+              }
             />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: '500' }}>Interests</label>
+            <label
+              htmlFor="confirmPassword"
+              style={{
+                fontSize: '0.9rem',
+                color: 'var(--text-primary)',
+                fontWeight: '500'
+              }}
+            >
+              Confirm Password
+            </label>
+
+            <input
+              type="password"
+              id="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              placeholder="••••••••"
+              required
+              style={{
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: '1px solid var(--glass-border)',
+                background: 'var(--input-bg)',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                transition: 'border 0.2s',
+                width: '100%'
+              }}
+              onFocus={(e) =>
+                (e.target.style.border = '1px solid var(--neon-cyan)')
+              }
+              onBlur={(e) =>
+                (e.target.style.border = '1px solid var(--glass-border)')
+              }
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label
+              style={{
+                fontSize: '0.9rem',
+                color: 'var(--text-primary)',
+                fontWeight: '500'
+              }}
+            >
+              Interests
+            </label>
+
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
               {interestOptions.map((interest) => (
                 <button
@@ -90,12 +291,22 @@ const Register = () => {
                   style={{
                     padding: '8px 16px',
                     borderRadius: '20px',
-                    border: `1px solid ${interests.includes(interest) ? 'var(--neon-pink)' : 'var(--glass-border)'}`,
-                    background: interests.includes(interest) ? 'rgba(255,0,234,0.1)' : 'transparent',
-                    color: interests.includes(interest) ? 'var(--neon-pink)' : 'var(--text-secondary)',
+                    border: `1px solid ${
+                      interests.includes(interest)
+                        ? 'var(--neon-pink)'
+                        : 'var(--glass-border)'
+                    }`,
+                    background: interests.includes(interest)
+                      ? 'rgba(255,0,234,0.1)'
+                      : 'transparent',
+                    color: interests.includes(interest)
+                      ? 'var(--neon-pink)'
+                      : 'var(--text-secondary)',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
-                    boxShadow: interests.includes(interest) ? 'var(--glow-pink)' : 'none'
+                    boxShadow: interests.includes(interest)
+                      ? 'var(--glow-pink)'
+                      : 'none'
                   }}
                 >
                   {interest}
@@ -103,19 +314,41 @@ const Register = () => {
               ))}
             </div>
           </div>
-          
-          <button 
-            type="submit" 
+
+          <button
+            type="submit"
             className="btn-primary"
             disabled={isSubmitting}
-            style={{ width: '100%', marginTop: '10px', boxShadow: 'var(--glow-cyan)' }}
+            style={{
+              width: '100%',
+              marginTop: '10px',
+              boxShadow: 'var(--glow-cyan)'
+            }}
           >
             {isSubmitting ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
-        
-        <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-          <p>Already in the system? <Link to="/login" style={{ fontWeight: '600', color: 'var(--neon-cyan)' }}>Login</Link></p>
+
+        <div
+          style={{
+            textAlign: 'center',
+            marginTop: '24px',
+            fontSize: '0.9rem',
+            color: 'var(--text-secondary)'
+          }}
+        >
+          <p>
+            Already in the system?{' '}
+            <Link
+              to="/login"
+              style={{
+                fontWeight: '600',
+                color: 'var(--neon-cyan)'
+              }}
+            >
+              Login
+            </Link>
+          </p>
         </div>
       </div>
     </div>
