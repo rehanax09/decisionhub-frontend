@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   CheckSquare, 
@@ -11,7 +11,12 @@ import {
   Settings,
   LogOut,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  PlusCircle,
+  ShieldAlert,
+  Globe,
+  AlertTriangle,
+  ArrowLeft
 } from 'lucide-react';
 
 const LogoIcon = () => (
@@ -55,16 +60,38 @@ const LogoIcon = () => (
 
 const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   const navigate = useNavigate();
-  const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Decision Boards', path: '/decision-board', icon: CheckSquare },
-    { name: 'Polls', path: '/polls', icon: BarChart2 },
-    { name: 'Communities', path: '/communities', icon: Users },
-    { name: 'Analytics', path: '/analytics', icon: TrendingUp },
-    { name: 'Reports', path: '/reports', icon: FileText },
-    { name: 'Notifications', path: '/notifications', icon: Bell },
-    { name: 'Settings', path: '/settings', icon: Settings },
+  const location = useLocation();
+  const role = localStorage.getItem('role');
+
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  const queryParams = new URLSearchParams(location.search);
+  const activeTab = queryParams.get('tab') || 'overview';
+
+  const baseNavItems = [
+    { id: 'dashboard', name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { id: 'create', name: 'Create Decision', path: '/create-decision', icon: PlusCircle },
+    { id: 'boards', name: 'Decision Boards', path: '/decision-board', icon: CheckSquare },
+    { id: 'polls', name: 'Polls', path: '/polls', icon: BarChart2 },
+    { id: 'communities', name: 'Communities', path: '/communities', icon: Users },
+    { id: 'analytics', name: 'Analytics', path: '/analytics', icon: TrendingUp },
+    { id: 'reports', name: 'Reports', path: '/reports', icon: FileText },
+    { id: 'notifications', name: 'Notifications', path: '/notifications', icon: Bell },
+    { id: 'settings', name: 'Settings', path: '/settings', icon: Settings },
   ];
+
+  const adminNavItems = [
+    { id: 'overview', name: 'Dashboard Overview', path: '/admin/dashboard?tab=overview', icon: LayoutDashboard },
+    { id: 'users', name: 'User Management', path: '/admin/dashboard?tab=users', icon: Users },
+    { id: 'communities', name: 'Community Management', path: '/admin/dashboard?tab=communities', icon: Globe },
+    { id: 'boards', name: 'Decision Board Mgmt', path: '/admin/dashboard?tab=boards', icon: CheckSquare },
+    { id: 'polls', name: 'Poll Management', path: '/admin/dashboard?tab=polls', icon: BarChart2 },
+    { id: 'analytics', name: 'Analytics', path: '/admin/dashboard?tab=analytics', icon: TrendingUp },
+    { id: 'moderation', name: 'Reports & Moderation', path: '/admin/dashboard?tab=moderation', icon: AlertTriangle },
+    { id: 'notifications', name: 'Notifications', path: '/admin/dashboard?tab=notifications', icon: Bell },
+    { id: 'settings', name: 'Settings', path: '/admin/dashboard?tab=settings', icon: Settings },
+  ];
+
+  const navItems = role === 'admin' ? adminNavItems : baseNavItems;
 
   return (
     <div style={{
@@ -107,34 +134,49 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
       </div>
 
       <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 12px' }}>
-        {navItems.map((item) => (
-          <NavLink
-            key={item.name}
-            to={item.path}
-            title={isCollapsed ? item.name : undefined}
-            style={({ isActive }) => ({
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: isCollapsed ? 'center' : 'flex-start',
-              gap: isCollapsed ? '0' : '12px',
-              padding: isCollapsed ? '12px' : '12px 16px',
-              borderRadius: '8px',
-              color: isActive ? 'var(--neon-cyan)' : 'var(--text-secondary)',
-              background: isActive ? 'rgba(0, 245, 255, 0.1)' : 'transparent',
-              textDecoration: 'none',
-              transition: 'all 0.2s',
-              fontWeight: isActive ? '600' : '400',
-            })}
-          >
-            <item.icon size={20} />
-            {!isCollapsed && <span>{item.name}</span>}
-          </NavLink>
-        ))}
+        {navItems.map((item) => {
+          const isItemActive = role === 'admin' 
+            ? activeTab === item.id 
+            : undefined; // fallback to react-router-dom default matching for non-admin routes
+
+          return (
+            <NavLink
+              key={item.id + '-' + item.name}
+              to={item.path}
+              title={isCollapsed ? item.name : undefined}
+              style={({ isActive }) => {
+                const active = isItemActive !== undefined ? isItemActive : isActive;
+                return {
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: isCollapsed ? 'center' : 'flex-start',
+                  gap: isCollapsed ? '0' : '12px',
+                  padding: isCollapsed ? '12px' : '12px 16px',
+                  borderRadius: '8px',
+                  color: active ? 'var(--neon-cyan)' : 'var(--text-secondary)',
+                  background: active ? 'rgba(0, 245, 255, 0.1)' : 'transparent',
+                  textDecoration: 'none',
+                  transition: 'all 0.2s',
+                  fontWeight: active ? '600' : '400',
+                };
+              }}
+            >
+              <item.icon size={20} />
+              {!isCollapsed && <span>{item.name}</span>}
+            </NavLink>
+          );
+        })}
       </nav>
 
-      <div style={{ padding: '0 12px', marginTop: 'auto' }}>
+      <div style={{ padding: '0 12px', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
+
         <button 
-          onClick={() => navigate('/login')}
+          onClick={() => {
+            localStorage.removeItem('role');
+            localStorage.removeItem('token');
+            navigate('/login');
+          }}
           title={isCollapsed ? "Logout" : undefined}
           style={{
             display: 'flex',
@@ -165,6 +207,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
           {!isCollapsed && <span>Logout</span>}
         </button>
       </div>
+
     </div>
   );
 };

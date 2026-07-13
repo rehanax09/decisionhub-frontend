@@ -107,15 +107,11 @@ const Navbar = ({ isDashboard, isCollapsed }) => {
         </Link>
       </div>
       
-      {/* Middle: Links */}
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'center' }}>
-        <NavLink to="/dashboard" className="nav-link">Dashboard</NavLink>
-        <NavLink to="/decision-board" className="nav-link">Decisions</NavLink>
-        <NavLink to="/polls" className="nav-link">Polls</NavLink>
-        <NavLink to="/communities" className="nav-link">Communities</NavLink>
-        <NavLink to="/analytics" className="nav-link">Analytics</NavLink>
-        <NavLink to="/reports" className="nav-link">Reports</NavLink>
-      </div>
+      
+      
+      
+      {/* Middle: Empty space since links were removed */}
+      <div style={{ flex: 1 }}></div>
       
       {/* Right: Actions */}
       <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: '16px', alignItems: 'center' }}>
@@ -123,7 +119,7 @@ const Navbar = ({ isDashboard, isCollapsed }) => {
           {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
         </button>
         <Link to="/login" className="btn-secondary" style={{ padding: '8px 24px', fontSize: '0.9rem', borderRadius: '20px' }}>
-          Login / Profile
+          Log In / Sign Up
         </Link>
       </div>
     </nav>

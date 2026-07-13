@@ -1,29 +1,43 @@
-import React, { useMemo } from 'react';
-import { MessageSquare, ThumbsUp, Plus } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ThumbsUp, Plus, Search } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import api from '../../api/api';
 
 const DecisionBoard = () => {
+  const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const searchQuery = searchParams.get('search') || '';
-  const decisions = [
-    { id: 1, title: 'MBA vs Corporate Job', votes: 120, status: 'Open Discussion', tags: ['Career', 'Education'] },
-    { id: 2, title: 'Goa vs Bali', votes: 89, status: 'Voting Active', tags: ['Travel'] },
-    { id: 3, title: 'React vs Vue for next project', votes: 432, status: 'Open Discussion', tags: ['Technology'] },
-    { id: 4, title: 'Buy House vs Invest in Stocks', votes: 215, status: 'Closed', tags: ['Finance'] },
-    { id: 5, title: 'iPhone 15 vs Pixel 8', votes: 890, status: 'Voting Active', tags: ['Technology'] },
-    { id: 6, title: 'Remote Work vs Hybrid', votes: 156, status: 'Open Discussion', tags: ['Career', 'Lifestyle'] },
-  ];
+  
+  const [decisions, setDecisions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch decisions from backend on mount
+  useEffect(() => {
+    const fetchDecisions = async () => {
+      try {
+        const res = await api.get('/api/decisions');
+        if (res.data?.success) {
+          setDecisions(res.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch decisions from backend:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDecisions();
+  }, []);
 
   const filteredDecisions = useMemo(() => {
     if (!searchQuery) return decisions;
     const lowerQuery = searchQuery.toLowerCase();
     return decisions.filter(dec => 
-      dec.title.toLowerCase().includes(lowerQuery) || 
-      dec.tags.some(tag => tag.toLowerCase().includes(lowerQuery)) ||
-      dec.status.toLowerCase().includes(lowerQuery)
+      (dec.title && dec.title.toLowerCase().includes(lowerQuery)) || 
+      (dec.category && dec.category.toLowerCase().includes(lowerQuery)) ||
+      (dec.status && dec.status.toLowerCase().includes(lowerQuery))
     );
-  }, [searchQuery]);
+  }, [decisions, searchQuery]);
 
   return (
     <div>
@@ -38,7 +52,11 @@ const DecisionBoard = () => {
         </div>
       </div>
 
-      {filteredDecisions.length === 0 ? (
+      {loading ? (
+        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
+          <h3>Loading decision boards...</h3>
+        </div>
+      ) : filteredDecisions.length === 0 ? (
         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
           <h3>No decisions found matching "{searchQuery}"</h3>
         </div>
@@ -46,38 +64,42 @@ const DecisionBoard = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
           {filteredDecisions.map((dec) => (
             <div key={dec.id} className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontFamily: 'Outfit', flex: 1, margin: '0 10px 0 0' }}>{dec.title}</h3>
-              <span style={{ 
-                background: dec.status === 'Closed' ? 'var(--chip-bg)' : 'rgba(0, 245, 255, 0.1)', 
-                color: dec.status === 'Closed' ? 'var(--text-secondary)' : 'var(--neon-cyan)',
-                padding: '4px 10px',
-                borderRadius: '12px',
-                fontSize: '0.75rem',
-                whiteSpace: 'nowrap'
-              }}>
-                {dec.status}
-              </span>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-              {dec.tags.map(tag => (
-                <span key={tag} style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--panel-bg)', padding: '4px 8px', borderRadius: '4px' }}>
-                  #{tag}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <h3 style={{ fontSize: '1.2rem', fontFamily: 'Outfit', flex: 1, margin: '0 10px 0 0' }}>{dec.title}</h3>
+                <span style={{ 
+                  background: dec.status === 'Closed' ? 'var(--chip-bg)' : 'rgba(0, 245, 255, 0.1)', 
+                  color: dec.status === 'Closed' ? 'var(--text-secondary)' : 'var(--neon-cyan)',
+                  padding: '4px 10px',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {dec.status}
                 </span>
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', borderTop: '1px solid var(--glass-border)', paddingTop: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                <ThumbsUp size={16} color="var(--neon-pink)" /> {dec.votes} Votes
               </div>
-              <Link to={`/decision/${dec.id}`} className="btn-secondary" style={{ padding: '6px 16px', fontSize: '0.85rem' }}>
-                View
-              </Link>
+              
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '20px', lineHeight: '1.5', flex: 1 }}>
+                {dec.description ? (dec.description.length > 120 ? `${dec.description.substring(0, 120)}...` : dec.description) : 'No description provided.'}
+              </p>
+              
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                {dec.category && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--panel-bg)', padding: '4px 8px', borderRadius: '4px' }}>
+                    #{dec.category}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', borderTop: '1px solid var(--glass-border)', paddingTop: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                  <ThumbsUp size={16} color="var(--neon-pink)" /> Active Consensus
+                </div>
+                <Link to={`/decision/${dec.id}`} className="btn-secondary" style={{ padding: '6px 16px', fontSize: '0.85rem' }}>
+                  View
+                </Link>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
         </div>
       )}
 

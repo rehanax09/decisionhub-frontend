@@ -24,6 +24,25 @@ import Reports from './pages/Reports';
 import ComparisonPage from './pages/ComparisonPage';
 import Discussion from './pages/Discussion';
 import Settings from './pages/Settings';
+import AdminDashboard from './pages/AdminDashboard';
+
+// Simple Route Guard for Admin Role
+const AdminRoute = ({ children }) => {
+  const role = localStorage.getItem('role');
+  if (role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+};
+
+// Route Guard for Authenticated Sessions
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
 
 function App() {
   useEffect(() => {
@@ -32,6 +51,41 @@ function App() {
       once: true,
       easing: 'ease-out-quint',
     });
+
+    // Load and apply theme colors on startup
+    const savedTheme = localStorage.getItem('admin-theme') || 'neon-dark';
+    const themes = {
+      'neon-dark': {
+        '--neon-cyan': '#00F5FF',
+        '--neon-pink': '#FF00FF',
+        '--glow-cyan': '0 0 10px rgba(0, 245, 255, 0.5), 0 0 20px rgba(0, 245, 255, 0.3)',
+        '--glow-pink': '0 0 10px rgba(255, 0, 255, 0.5), 0 0 20px rgba(255, 0, 255, 0.3)'
+      },
+      'cyberpunk-pink': {
+        '--neon-cyan': '#FF00FF',
+        '--neon-pink': '#00F5FF',
+        '--glow-cyan': '0 0 10px rgba(255, 0, 255, 0.5), 0 0 20px rgba(255, 0, 255, 0.3)',
+        '--glow-pink': '0 0 10px rgba(0, 245, 255, 0.5), 0 0 20px rgba(0, 245, 255, 0.3)'
+      },
+      'emerald-glow': {
+        '--neon-cyan': '#00FF99',
+        '--neon-pink': '#FF8C00',
+        '--glow-cyan': '0 0 10px rgba(0, 255, 153, 0.5), 0 0 20px rgba(0, 255, 153, 0.3)',
+        '--glow-pink': '0 0 10px rgba(255, 140, 0, 0.5), 0 0 20px rgba(255, 140, 0, 0.3)'
+      },
+      'classic-slate': {
+        '--neon-cyan': '#94A3B8',
+        '--neon-pink': '#64748B',
+        '--glow-cyan': '0 0 10px rgba(148, 163, 184, 0.3)',
+        '--glow-pink': '0 0 10px rgba(100, 116, 139, 0.3)'
+      }
+    };
+    const theme = themes[savedTheme];
+    if (theme) {
+      Object.entries(theme).forEach(([variable, value]) => {
+        document.documentElement.style.setProperty(variable, value);
+      });
+    }
   }, []);
 
   return (
@@ -47,7 +101,7 @@ function App() {
         <Route path="/register" element={<Register />} />
 
         {/* Dashboard Routes with Sidebar and Top Navbar */}
-        <Route element={<DashboardLayout />}>
+        <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/decision-board" element={<DecisionBoards />} />
           <Route path="/create-decision" element={<CreateDecision />} />
@@ -61,6 +115,7 @@ function App() {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
         </Route>
         
         <Route path="*" element={<Navigate to="/" replace />} />

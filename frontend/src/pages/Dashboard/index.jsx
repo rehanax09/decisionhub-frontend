@@ -1,18 +1,50 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
 } from 'recharts';
 import { Target, CheckSquare, Users, BarChart2 } from 'lucide-react';
+import api from '../../api/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  // Mock Data
+  const role = localStorage.getItem('role');
+  const [decisionsCount, setDecisionsCount] = useState(0);
+  const [joinedCommunitiesCount, setJoinedCommunitiesCount] = useState(0);
+
+  React.useEffect(() => {
+    if (role === 'admin') {
+      navigate('/admin/dashboard?tab=overview', { replace: true });
+    }
+  }, [role, navigate]);
+
+  React.useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        const userRes = await api.get('/api/users/me');
+        if (userRes.data?.success) {
+          const userObj = userRes.data.data;
+          const list = JSON.parse(localStorage.getItem(`joined_comm_${userObj.id}`) || "[]");
+          setJoinedCommunitiesCount(list.length);
+        }
+
+        const decisionsRes = await api.get('/api/decisions');
+        if (decisionsRes.data?.success) {
+          setDecisionsCount(decisionsRes.data.data.length);
+        }
+      } catch (err) {
+        console.error("Failed to load dashboard data:", err);
+      }
+    };
+    loadDashboardData();
+  }, []);
+
+  // Stats Data
   const stats = [
-    { title: 'Total Decisions', value: '142', icon: Target, color: 'var(--neon-cyan)' },
+    { title: 'Total Decisions', value: decisionsCount.toString(), icon: Target, color: 'var(--neon-cyan)' },
     { title: 'Votes Received', value: '12.4K', icon: CheckSquare, color: 'var(--neon-pink)' },
-    { title: 'Communities Joined', value: '8', icon: Users, color: 'var(--accent-purple)' },
+    { title: 'Communities Joined', value: joinedCommunitiesCount.toString(), icon: Users, color: 'var(--accent-purple)' },
     { title: 'Polls Created', value: '24', icon: BarChart2, color: 'var(--success)' },
   ];
 
@@ -41,7 +73,10 @@ const Dashboard = () => {
           <h1 style={{ fontSize: '2rem', fontFamily: 'Outfit', margin: 0 }}>System Overview</h1>
           <p style={{ color: 'var(--text-secondary)' }}>Welcome back to the grid, user.</p>
         </div>
-        <button className="btn-primary" onClick={() => navigate('/reports')}>Generate Report</button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="btn-primary" onClick={() => navigate('/create-decision')}>Create Decision</button>
+          <button className="btn-secondary" onClick={() => navigate('/reports')}>Generate Report</button>
+        </div>
       </div>
 
       {/* Stats Cards */}

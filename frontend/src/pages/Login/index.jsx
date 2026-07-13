@@ -26,10 +26,17 @@ const Login = () => {
         localStorage.setItem("token", response.data.data.token);
       }
 
+      const role = email.toLowerCase().includes('admin') ? 'admin' : 'user';
+      localStorage.setItem("role", role);
+
       alert("Login Successful!");
 
-      // Redirect to dashboard
-      navigate("/dashboard");
+      // Redirect based on role
+      if (role === 'admin') {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
 
     } catch (error) {
       console.error(error);
