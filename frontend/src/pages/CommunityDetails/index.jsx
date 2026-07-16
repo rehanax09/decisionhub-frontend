@@ -224,12 +224,6 @@ const CommunityDetails = () => {
       {/* Decision Boards Section */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h2 style={{ fontSize: '1.8rem', fontFamily: 'Outfit', margin: 0 }}>Community Decisions</h2>
-        
-        {(isModerator || isAdmin) && (
-          <Link to={`/create-decision?communityId=${community.id}`} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px' }}>
-            <Plus size={18} /> Create Decision
-          </Link>
-        )}
       </div>
 
       {!isJoined ? (

@@ -28,8 +28,11 @@ const CreateDecision = () => {
         if (user) {
           const commsRes = await api.get('/api/communities');
           if (commsRes.data?.success) {
-             const mods = commsRes.data.data.filter(c => c.moderatorUsername === user.username);
-             setMyCommunities(mods);
+             const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${user.id}`) || "[]");
+             const allowed = commsRes.data.data.filter(c => 
+                 c.moderatorUsername === user.username || joinedList.includes(c.id) || user.role === 'ADMIN'
+             );
+             setMyCommunities(allowed);
           }
         }
       } catch (err) {
@@ -116,6 +119,31 @@ const CreateDecision = () => {
             onBlur={(e) => e.target.style.border = '1px solid var(--glass-border)'}
           />
         </div>
+
+        {/* Community Selection */}
+        {!paramCommunityId && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: '500' }}>Target Audience / Community</label>
+            <select
+              value={communityId}
+              onChange={(e) => setCommunityId(e.target.value)}
+              style={{
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: '1px solid var(--glass-border)',
+                background: 'var(--input-bg)',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                width: '100%'
+              }}
+            >
+              <option value="" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Public (Open to everyone)</option>
+              {myCommunities.map(c => (
+                <option key={c.id} value={c.id} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Category */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
