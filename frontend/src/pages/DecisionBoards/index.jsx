@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ThumbsUp, Plus, Search } from 'lucide-react';
+import { ThumbsUp, Plus, Search, Filter } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../../api/api';
 
@@ -11,6 +11,7 @@ const DecisionBoard = () => {
   
   const [decisions, setDecisions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterCategory, setFilterCategory] = useState('All');
 
   // Fetch decisions from backend on mount
   useEffect(() => {
@@ -30,18 +31,26 @@ const DecisionBoard = () => {
   }, []);
 
   const filteredDecisions = useMemo(() => {
-    if (!searchQuery) return decisions;
-    const lowerQuery = searchQuery.toLowerCase();
-    return decisions.filter(dec => 
-      (dec.title && dec.title.toLowerCase().includes(lowerQuery)) || 
-      (dec.category && dec.category.toLowerCase().includes(lowerQuery)) ||
-      (dec.status && dec.status.toLowerCase().includes(lowerQuery))
-    );
-  }, [decisions, searchQuery]);
+    // Only show public decisions on the main board
+    let result = decisions.filter(dec => !dec.communityId);
+    
+    if (searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase();
+      result = result.filter(dec => 
+        (dec.title && dec.title.toLowerCase().includes(lowerQuery)) || 
+        (dec.category && dec.category.toLowerCase().includes(lowerQuery)) ||
+        (dec.status && dec.status.toLowerCase().includes(lowerQuery))
+      );
+    }
+    if (filterCategory !== 'All') {
+      result = result.filter(dec => dec.category === filterCategory);
+    }
+    return result;
+  }, [decisions, searchQuery, filterCategory]);
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '20px' }}>
         <div>
           <h1 style={{ fontSize: '2rem', fontFamily: 'Outfit', margin: 0 }}>
             {searchQuery ? `Search Results: "${searchQuery}"` : 'Decision Boards'}
@@ -49,6 +58,34 @@ const DecisionBoard = () => {
           <p style={{ color: 'var(--text-secondary)' }}>
             {searchQuery ? `Showing results matching your search.` : `Explore and participate in the network's consensus.`}
           </p>
+        </div>
+
+        <div style={{ position: 'relative' }}>
+          <Filter size={20} style={{ position: 'absolute', left: 14, top: 10, color: 'var(--text-secondary)' }} />
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            style={{
+              appearance: 'none',
+              background: 'var(--panel-bg)',
+              border: '1px solid var(--glass-border)',
+              borderRadius: '20px',
+              padding: '10px 16px 10px 45px',
+              color: 'var(--text-primary)',
+              outline: 'none',
+              cursor: 'pointer',
+              transition: 'border-color 0.3s ease'
+            }}
+            onFocus={(e) => e.target.style.borderColor = 'var(--neon-cyan)'}
+            onBlur={(e) => e.target.style.borderColor = 'var(--glass-border)'}
+          >
+            <option value="All" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>All Categories</option>
+            <option value="Technology" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Technology</option>
+            <option value="Finance" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Finance</option>
+            <option value="Career" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Career</option>
+            <option value="Travel" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Travel</option>
+            <option value="Lifestyle" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Lifestyle</option>
+          </select>
         </div>
       </div>
 
@@ -86,6 +123,15 @@ const DecisionBoard = () => {
                 {dec.category && (
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--panel-bg)', padding: '4px 8px', borderRadius: '4px' }}>
                     #{dec.category}
+                  </span>
+                )}
+                {dec.communityName ? (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--neon-pink)', background: 'rgba(255, 99, 132, 0.1)', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(255, 99, 132, 0.3)' }}>
+                    Community: {dec.communityName}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--success)', background: 'rgba(0, 255, 127, 0.1)', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(0, 255, 127, 0.3)' }}>
+                    Public
                   </span>
                 )}
               </div>

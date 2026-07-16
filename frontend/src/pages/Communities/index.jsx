@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Users, MessageSquare, TrendingUp, Search, PlusCircle, CheckCircle, Shield, X } from 'lucide-react';
+import { Users, MessageSquare, TrendingUp, Search, PlusCircle, CheckCircle, Shield, X, ArrowRight, Filter } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/api';
 
 const CATEGORY_STYLES = {
@@ -13,7 +14,9 @@ const CATEGORY_STYLES = {
 const DEFAULT_STYLE = { color: 'var(--neon-cyan)', icon: <Users size={24} /> };
 
 const Communities = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('All');
   const [communities, setCommunities] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -82,18 +85,22 @@ const Communities = () => {
         localStorage.setItem(`joined_comm_${currentUser.id}`, JSON.stringify(joinedList.filter(x => x !== id)));
       } else {
         // Join community
-        await api.post(`/api/communities/${id}/members`);
-        setCommunities(prev => prev.map(c => {
-          if (c.id === id) {
-            return { ...c, isJoined: true, memberCount: c.memberCount + 1 };
+        const res = await api.post(`/api/communities/${id}/join`);
+        const msg = res.data?.message || res.data?.data || "Join request sent.";
+        alert(msg);
+        
+        // If they joined instantly (e.g. Admin), we could update the UI, but it's simpler to just re-fetch or let them know.
+        if (msg.toLowerCase().includes("joined")) {
+           setCommunities(prev => prev.map(c => {
+            if (c.id === id) {
+              return { ...c, isJoined: true, memberCount: c.memberCount + 1 };
+            }
+            return c;
+          }));
+          const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${currentUser.id}`) || "[]");
+          if (!joinedList.includes(id)) {
+            localStorage.setItem(`joined_comm_${currentUser.id}`, JSON.stringify([...joinedList, id]));
           }
-          return c;
-        }));
-
-        // Update local storage tracking
-        const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${currentUser.id}`) || "[]");
-        if (!joinedList.includes(id)) {
-          localStorage.setItem(`joined_comm_${currentUser.id}`, JSON.stringify([...joinedList, id]));
         }
       }
     } catch (err) {
@@ -142,10 +149,12 @@ const Communities = () => {
     }
   };
 
-  const filteredCommunities = communities.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (c.category && c.category.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredCommunities = communities.filter(c => {
+    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (c.category && c.category.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesCategory = filterCategory === 'All' || c.category === filterCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -179,6 +188,35 @@ const Communities = () => {
               onBlur={(e) => e.target.style.borderColor = 'var(--glass-border)'}
             />
           </div>
+          
+          <div style={{ position: 'relative' }}>
+            <Filter size={20} style={{ position: 'absolute', left: 14, top: 10, color: 'var(--text-secondary)' }} />
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              style={{
+                appearance: 'none',
+                background: 'var(--panel-bg)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '20px',
+                padding: '10px 16px 10px 45px',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                cursor: 'pointer',
+                transition: 'border-color 0.3s ease'
+              }}
+              onFocus={(e) => e.target.style.borderColor = 'var(--neon-cyan)'}
+              onBlur={(e) => e.target.style.borderColor = 'var(--glass-border)'}
+            >
+              <option value="All" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>All Categories</option>
+              <option value="Technology" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Technology</option>
+              <option value="Finance" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Finance</option>
+              <option value="Career" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Career</option>
+              <option value="Travel" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Travel</option>
+              <option value="Lifestyle" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Lifestyle</option>
+            </select>
+          </div>
+
           <button 
             className="btn-primary" 
             onClick={() => setShowModal(true)}
@@ -202,11 +240,13 @@ const Communities = () => {
             <div 
               key={community.id} 
               className="glass-panel" 
+              onClick={() => navigate(`/communities/${community.id}`)}
               style={{ 
                 padding: '30px', 
                 display: 'flex', 
                 flexDirection: 'column', 
                 position: 'relative', 
+                cursor: 'pointer',
                 transition: 'transform 0.3s ease, box-shadow 0.3s ease'
               }}
               onMouseOver={(e) => {
@@ -262,18 +302,16 @@ const Communities = () => {
                 </span>
               </div>
 
-              {/* Action Button */}
-              <button 
-                onClick={() => toggleJoin(community.id, community.isJoined)}
+              {/* Action Button - Let's just have an open button here, no join logic in the card */}
+              <div 
                 style={{
                   width: '100%',
                   padding: '12px',
                   borderRadius: '8px',
-                  border: community.isJoined ? '1px solid var(--glass-border)' : 'none',
-                  background: community.isJoined ? 'var(--panel-bg)' : `linear-gradient(45deg, ${community.color}, var(--bg-primary))`,
+                  background: 'var(--panel-bg)',
+                  border: '1px solid var(--glass-border)',
                   color: 'var(--text-primary)',
                   fontWeight: 'bold',
-                  cursor: 'pointer',
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
@@ -281,14 +319,8 @@ const Communities = () => {
                   transition: 'all 0.3s ease'
                 }}
               >
-                {community.isJoined ? (
-                  <>
-                    <CheckCircle size={18} color="var(--success)" /> Joined
-                  </>
-                ) : (
-                  'Join Community'
-                )}
-              </button>
+                View Community <ArrowRight size={18} />
+              </div>
               
             </div>
           ))}
@@ -392,11 +424,11 @@ const Communities = () => {
                     width: '100%'
                   }}
                 >
-                  <option value="Technology">Technology</option>
-                  <option value="Finance">Finance</option>
-                  <option value="Career">Career</option>
-                  <option value="Travel">Travel</option>
-                  <option value="Lifestyle">Lifestyle</option>
+                  <option value="Technology" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Technology</option>
+                  <option value="Finance" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Finance</option>
+                  <option value="Career" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Career</option>
+                  <option value="Travel" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Travel</option>
+                  <option value="Lifestyle" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Lifestyle</option>
                 </select>
               </div>
 

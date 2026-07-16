@@ -8,8 +8,7 @@ const DecisionDetails = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [decision, setDecision] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [voted, setVoted] = useState(null); // 'agree' or 'disagree'
-  const [agreePercent, setAgreePercent] = useState(50);
+  const [votedOptionId, setVotedOptionId] = useState(null);
 
   // Comments local state for discussion
   const [comments, setComments] = useState([
@@ -28,8 +27,7 @@ const DecisionDetails = () => {
           // Load local vote from localStorage
           const localVote = localStorage.getItem(`vote_dec_${id}`);
           if (localVote) {
-            setVoted(localVote);
-            setAgreePercent(localVote === 'agree' ? 72 : 28);
+            setVotedOptionId(Number(localVote));
           }
         }
       } catch (err) {
@@ -41,10 +39,23 @@ const DecisionDetails = () => {
     fetchDecision();
   }, [id]);
 
-  const handleVote = (type) => {
-    setVoted(type);
-    setAgreePercent(type === 'agree' ? 72 : 28);
-    localStorage.setItem(`vote_dec_${id}`, type);
+  const handleVote = async (optionId) => {
+    try {
+      const res = await api.post(`/api/decisions/${id}/votes`, { optionId, voteType: 'UPVOTE' });
+      if (res.data?.success) {
+        setVotedOptionId(optionId);
+        localStorage.setItem(`vote_dec_${id}`, optionId);
+        
+        // Refresh decision to update scores
+        const decisionRes = await api.get(`/api/decisions/${id}`);
+        if (decisionRes.data?.success) {
+          setDecision(decisionRes.data.data);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to cast vote:", err);
+      alert(err.response?.data?.message || "Failed to cast vote.");
+    }
   };
 
   const handleAddComment = (e) => {
@@ -104,24 +115,13 @@ const DecisionDetails = () => {
             </div>
             <h1 style={{ fontSize: '2.5rem', fontFamily: 'Outfit', margin: 0, marginBottom: '8px' }}>{decision.title}</h1>
             <p style={{ color: 'var(--text-secondary)' }}>
-              Consensus Level: <span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold' }}>{agreePercent}% Support</span>
+              Total Options: <span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold' }}>{decision.options?.length || 0}</span>
             </p>
           </div>
         </div>
       </div>
 
-      {/* Consensus Meter */}
-      <div className="glass-panel" style={{ padding: '30px', marginBottom: '30px' }}>
-        <h3 style={{ marginBottom: '16px', fontFamily: 'Outfit' }}>Network Consensus Meter</h3>
-        <div style={{ height: '12px', background: 'var(--glass-border)', borderRadius: '6px', display: 'flex', overflow: 'hidden', marginBottom: '12px' }}>
-          <div style={{ width: `${agreePercent}%`, background: 'var(--neon-cyan)', transition: 'width 0.8s ease' }}></div>
-          <div style={{ width: `${100 - agreePercent}%`, background: 'var(--neon-pink)', transition: 'width 0.8s ease' }}></div>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-          <span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold' }}>{agreePercent}% Support / Agree</span>
-          <span style={{ color: 'var(--neon-pink)', fontWeight: 'bold' }}>{100 - agreePercent}% Oppose / Disagree</span>
-        </div>
-      </div>
+
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '20px', borderBottom: '1px solid var(--glass-border)', marginBottom: '30px' }}>
@@ -157,39 +157,62 @@ const DecisionDetails = () => {
             </p>
           </div>
 
-          {/* Voting Action Panels */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '30px' }}>
-            {/* Agree option */}
-            <div className="glass-panel" style={{ padding: '30px', border: voted === 'agree' ? '1px solid var(--neon-cyan)' : '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', textAlign: 'center' }}>
-              <ThumbsUp size={48} color="var(--neon-cyan)" style={{ opacity: voted === 'agree' ? 1 : 0.6 }} />
-              <div>
-                <h3 style={{ margin: '0 0 6px 0', fontFamily: 'Outfit' }}>Support / Agree</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>Vote in favor of the proposal or idea described.</p>
-              </div>
-              <button 
-                onClick={() => handleVote('agree')}
-                className={voted === 'agree' ? 'btn-primary' : 'btn-secondary'}
-                style={{ width: '100%', marginTop: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
-              >
-                <CheckCircle size={18} /> {voted === 'agree' ? 'Voted' : 'Cast Agree'}
-              </button>
-            </div>
+          {/* Options & Voting */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <h3 style={{ fontFamily: 'Outfit', margin: 0, color: 'var(--text-primary)' }}>Available Options</h3>
+            {decision.options && decision.options.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+                {decision.options.map(option => {
+                  const isVoted = votedOptionId === option.id;
+                  return (
+                    <div key={option.id} className="glass-panel" style={{ 
+                      padding: '24px', 
+                      border: isVoted ? '1px solid var(--neon-cyan)' : '1px solid var(--glass-border)',
+                      boxShadow: isVoted ? 'var(--glow-cyan)' : 'none',
+                      display: 'flex', flexDirection: 'column', gap: '16px' 
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <h4 style={{ margin: 0, fontSize: '1.2rem', fontFamily: 'Outfit', color: 'var(--text-primary)' }}>{option.optionTitle}</h4>
+                        <span style={{ background: 'rgba(0, 245, 255, 0.1)', color: 'var(--neon-cyan)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                          Score: {option.score || 0}
+                        </span>
+                      </div>
+                      
+                      {option.description && (
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0, lineHeight: '1.5' }}>
+                          {option.description}
+                        </p>
+                      )}
 
-            {/* Disagree option */}
-            <div className="glass-panel" style={{ padding: '30px', border: voted === 'disagree' ? '1px solid var(--neon-pink)' : '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', textAlign: 'center' }}>
-              <ThumbsDown size={48} color="var(--neon-pink)" style={{ opacity: voted === 'disagree' ? 1 : 0.6 }} />
-              <div>
-                <h3 style={{ margin: '0 0 6px 0', fontFamily: 'Outfit' }}>Oppose / Disagree</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>Vote against or flag potential concerns about the proposal.</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                        {option.pros && (
+                          <div style={{ fontSize: '0.85rem' }}>
+                            <span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold', marginRight: '6px' }}>Pros:</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{option.pros}</span>
+                          </div>
+                        )}
+                        {option.cons && (
+                          <div style={{ fontSize: '0.85rem' }}>
+                            <span style={{ color: 'var(--neon-pink)', fontWeight: 'bold', marginRight: '6px' }}>Cons:</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{option.cons}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <button 
+                        onClick={() => handleVote(option.id)}
+                        className={isVoted ? 'btn-primary' : 'btn-secondary'}
+                        style={{ width: '100%', marginTop: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+                      >
+                        <CheckCircle size={18} /> {isVoted ? 'Voted' : 'Vote for this Option'}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-              <button 
-                onClick={() => handleVote('disagree')}
-                className={voted === 'disagree' ? 'btn-primary' : 'btn-secondary'}
-                style={{ width: '100%', marginTop: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', boxShadow: voted === 'disagree' ? 'var(--glow-pink)' : 'none' }}
-              >
-                <CheckCircle size={18} /> {voted === 'disagree' ? 'Voted' : 'Cast Disagree'}
-              </button>
-            </div>
+            ) : (
+              <p style={{ color: 'var(--text-secondary)' }}>No options have been provided for this decision.</p>
+            )}
           </div>
         </div>
       )}

@@ -71,10 +71,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     { id: 'dashboard', name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { id: 'create', name: 'Create Decision', path: '/create-decision', icon: PlusCircle },
     { id: 'boards', name: 'Decision Boards', path: '/decision-board', icon: CheckSquare },
-    { id: 'polls', name: 'Polls', path: '/polls', icon: BarChart2 },
     { id: 'communities', name: 'Communities', path: '/communities', icon: Users },
-    { id: 'analytics', name: 'Analytics', path: '/analytics', icon: TrendingUp },
-    { id: 'reports', name: 'Reports', path: '/reports', icon: FileText },
     { id: 'notifications', name: 'Notifications', path: '/notifications', icon: Bell },
     { id: 'settings', name: 'Settings', path: '/settings', icon: Settings },
   ];
