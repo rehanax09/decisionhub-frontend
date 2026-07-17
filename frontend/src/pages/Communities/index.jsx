@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, MessageSquare, TrendingUp, Search, PlusCircle, CheckCircle, Shield, X, ArrowRight, Filter } from 'lucide-react';
+import { Users, MessageSquare, TrendingUp, Search, PlusCircle, CheckCircle, Shield, X, ArrowRight, Filter, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/api';
 
@@ -32,28 +32,47 @@ const Communities = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const userRes = await api.get('/api/users/me');
-        if (userRes.data?.success) {
-          setCurrentUser(userRes.data.data);
+        const [userRes, commsRes, decRes] = await Promise.all([
+          api.get('/api/users/me'),
+          api.get('/api/communities'),
+          api.get('/api/decisions').catch(() => ({ data: { success: false, data: [] } }))
+        ]);
+
+        const user = userRes.data?.data;
+        if (user) {
+          setCurrentUser(user);
         }
 
-        const commsRes = await api.get('/api/communities');
+        const decisions = decRes.data?.success ? decRes.data.data : [];
+        const accessedCommunityIds = new Set(
+          decisions.filter(d => d.communityId).map(d => d.communityId)
+        );
+
         if (commsRes.data?.success) {
+          // Sync local storage joined list
+          const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${user?.id}`) || "[]");
+          const updatedJoinedList = [...joinedList];
+          accessedCommunityIds.forEach(id => {
+            if (!updatedJoinedList.includes(id)) {
+              updatedJoinedList.push(id);
+            }
+          });
+          if (user) {
+            localStorage.setItem(`joined_comm_${user.id}`, JSON.stringify(updatedJoinedList));
+          }
+
           const list = commsRes.data.data.map(c => {
             const styleInfo = CATEGORY_STYLES[c.category] || DEFAULT_STYLE;
-            // The moderator/creator is automatically joined.
-            // For other users, check if they are joined (we'll also track it locally if updated)
-            const isModerator = userRes.data?.data && c.moderatorUsername === userRes.data.data.username;
-            
-            // Check if user has joined community using localStorage list (or default to false if not moderator)
-            const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${userRes.data?.data?.id}`) || "[]");
-            const isJoined = isModerator || joinedList.includes(c.id);
+            const isModerator = user && c.moderatorUsername === user.username;
+            const isJoined = isModerator || updatedJoinedList.includes(c.id) || accessedCommunityIds.has(c.id);
+            const isPending = !isJoined && user && localStorage.getItem(`pending_comm_${user.id}_${c.id}`) === "true";
 
             return {
               ...c,
               color: styleInfo.color,
               icon: styleInfo.icon,
-              isJoined: isJoined
+              isJoined: isJoined,
+              isPending: isPending
             };
           });
           setCommunities(list);
@@ -302,24 +321,43 @@ const Communities = () => {
                 </span>
               </div>
 
-              {/* Action Button - Let's just have an open button here, no join logic in the card */}
+              {/* Action Button */}
               <div 
                 style={{
                   width: '100%',
                   padding: '12px',
                   borderRadius: '8px',
-                  background: 'var(--panel-bg)',
-                  border: '1px solid var(--glass-border)',
-                  color: 'var(--text-primary)',
+                  background: community.isJoined 
+                    ? 'rgba(0, 255, 127, 0.05)' 
+                    : community.isPending 
+                      ? 'rgba(255, 165, 0, 0.05)' 
+                      : 'var(--panel-bg)',
+                  border: community.isJoined 
+                    ? '1px solid rgba(0, 255, 127, 0.3)' 
+                    : community.isPending 
+                      ? '1px solid rgba(255, 165, 0, 0.3)' 
+                      : '1px solid var(--glass-border)',
+                  color: community.isJoined 
+                    ? 'var(--success)' 
+                    : community.isPending 
+                      ? 'orange' 
+                      : 'var(--text-primary)',
                   fontWeight: 'bold',
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
                   gap: '8px',
-                  transition: 'all 0.3s ease'
+                  transition: 'all 0.3s ease',
+                  boxShadow: community.isJoined ? '0 0 10px rgba(0, 255, 127, 0.1)' : 'none'
                 }}
               >
-                View Community <ArrowRight size={18} />
+                {community.isJoined ? (
+                  <>Joined Community <CheckCircle size={18} /></>
+                ) : community.isPending ? (
+                  <>Pending Approval <Clock size={18} /></>
+                ) : (
+                  <>View Community <ArrowRight size={18} /></>
+                )}
               </div>
               
             </div>

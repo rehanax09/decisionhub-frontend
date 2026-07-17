@@ -26,7 +26,7 @@ const Profile = () => {
           const decisionsRes = await api.get('/api/decisions');
           if (decisionsRes.data?.success) {
             const allDecisions = decisionsRes.data.data;
-            const filtered = allDecisions.filter(d => d.user?.email === userObj.email);
+            const filtered = allDecisions.filter(d => d.userId === userObj.id);
             setMyDecisions(filtered);
           }
         }

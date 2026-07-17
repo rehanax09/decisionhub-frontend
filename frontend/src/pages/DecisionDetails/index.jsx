@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ThumbsUp, ThumbsDown, MessageSquare, BarChart2, CheckCircle, ArrowLeft } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ThumbsUp, ThumbsDown, MessageSquare, BarChart2, CheckCircle, ArrowLeft, Trash2 } from 'lucide-react';
 import api from '../../api/api';
 
 const DecisionDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [decision, setDecision] = useState(null);
   const [loading, setLoading] = useState(true);
   const [votedOptionId, setVotedOptionId] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
   // Comments local state for discussion
   const [comments, setComments] = useState([
@@ -18,17 +20,25 @@ const DecisionDetails = () => {
   const [newComment, setNewComment] = useState('');
 
   useEffect(() => {
-    const fetchDecision = async () => {
+    const fetchDecisionAndUser = async () => {
       try {
-        const res = await api.get(`/api/decisions/${id}`);
-        if (res.data?.success) {
-          setDecision(res.data.data);
+        const [decisionRes, userRes] = await Promise.all([
+          api.get(`/api/decisions/${id}`),
+          api.get('/api/users/me').catch(() => null)
+        ]);
+
+        if (decisionRes.data?.success) {
+          setDecision(decisionRes.data.data);
           
-          // Load local vote from localStorage
-          const localVote = localStorage.getItem(`vote_dec_${id}`);
-          if (localVote) {
-            setVotedOptionId(Number(localVote));
+          if (decisionRes.data.data.votedOptionId) {
+            setVotedOptionId(Number(decisionRes.data.data.votedOptionId));
+          } else {
+            setVotedOptionId(null);
           }
+        }
+
+        if (userRes && userRes.data?.success) {
+          setCurrentUser(userRes.data.data);
         }
       } catch (err) {
         console.error("Failed to fetch decision details:", err);
@@ -36,7 +46,7 @@ const DecisionDetails = () => {
         setLoading(false);
       }
     };
-    fetchDecision();
+    fetchDecisionAndUser();
   }, [id]);
 
   const handleVote = async (optionId) => {
@@ -44,17 +54,36 @@ const DecisionDetails = () => {
       const res = await api.post(`/api/decisions/${id}/votes`, { optionId, voteType: 'UPVOTE' });
       if (res.data?.success) {
         setVotedOptionId(optionId);
-        localStorage.setItem(`vote_dec_${id}`, optionId);
         
         // Refresh decision to update scores
         const decisionRes = await api.get(`/api/decisions/${id}`);
         if (decisionRes.data?.success) {
           setDecision(decisionRes.data.data);
+          if (decisionRes.data.data.votedOptionId) {
+            setVotedOptionId(Number(decisionRes.data.data.votedOptionId));
+          }
         }
       }
     } catch (err) {
       console.error("Failed to cast vote:", err);
       alert(err.response?.data?.message || "Failed to cast vote.");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this decision board? This action cannot be undone.")) {
+      return;
+    }
+    
+    try {
+      const res = await api.delete(`/api/decisions/${id}`);
+      if (res.data?.success) {
+        alert("Decision board deleted successfully.");
+        navigate("/decision-board");
+      }
+    } catch (err) {
+      console.error("Failed to delete decision board:", err);
+      alert(err.response?.data?.message || "Failed to delete decision board.");
     }
   };
 
@@ -118,6 +147,37 @@ const DecisionDetails = () => {
               Total Options: <span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold' }}>{decision.options?.length || 0}</span>
             </p>
           </div>
+
+          {currentUser && (currentUser.id === decision.userId || currentUser.role === 'ADMIN') && (
+            <button
+              onClick={handleDelete}
+              className="btn-danger"
+              style={{
+                background: 'rgba(255, 0, 92, 0.1)',
+                border: '1px solid rgba(255, 0, 92, 0.3)',
+                color: 'var(--neon-pink)',
+                padding: '10px 20px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontFamily: 'Outfit',
+                fontSize: '0.95rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 0, 92, 0.2)';
+                e.currentTarget.style.borderColor = 'var(--neon-pink)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 0, 92, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(255, 0, 92, 0.3)';
+              }}
+            >
+              <Trash2 size={16} /> Delete Board
+            </button>
+          )}
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Users, Shield, MessageSquare, Plus, ArrowLeft, CheckCircle, X, ThumbsUp } from 'lucide-react';
+import { Users, Shield, MessageSquare, Plus, ArrowLeft, CheckCircle, X, ThumbsUp, Clock } from 'lucide-react';
 import api from '../../api/api';
 
 const CommunityDetails = () => {
@@ -14,6 +14,7 @@ const CommunityDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isJoined, setIsJoined] = useState(false);
+  const [isPending, setIsPending] = useState(false);
 
   // Manage Requests State
   const [showRequestsModal, setShowRequestsModal] = useState(false);
@@ -23,9 +24,10 @@ const CommunityDetails = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [userRes, commRes] = await Promise.all([
+        const [userRes, commRes, decRes] = await Promise.all([
           api.get('/api/users/me'),
-          api.get(`/api/communities/${id}`)
+          api.get(`/api/communities/${id}`),
+          api.get('/api/decisions').catch(() => ({ data: { success: false, data: [] } }))
         ]);
 
         const user = userRes.data?.data;
@@ -34,18 +36,49 @@ const CommunityDetails = () => {
         const comm = commRes.data?.data;
         if (comm) {
           setCommunity(comm);
-          // Check if joined
+          
+          const allDecisions = decRes.data?.success ? decRes.data.data : [];
+          const commDecisions = allDecisions.filter(d => d.communityId === parseInt(id));
+
           const isMod = user?.username === comm.moderatorUsername;
           const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${user?.id}`) || "[]");
-          const joined = isMod || joinedList.includes(parseInt(id));
+          const hasDecisionsAccess = commDecisions.length > 0;
+          
+          let joined = isMod || joinedList.includes(parseInt(id)) || hasDecisionsAccess;
+          let pending = false;
+
+          // If not joined, check if we have a pending request tracker
+          if (!joined && user) {
+            const wasPending = localStorage.getItem(`pending_comm_${user.id}_${id}`) === "true";
+            if (wasPending) {
+              try {
+                const pingRes = await api.post(`/api/communities/${id}/join`);
+                const detail = pingRes.data?.data || "";
+                if (detail.toLowerCase().includes("joined")) {
+                  joined = true;
+                  localStorage.removeItem(`pending_comm_${user.id}_${id}`);
+                } else {
+                  pending = true;
+                }
+              } catch (pingErr) {
+                const errMsg = pingErr.response?.data?.message || "";
+                if (errMsg.toLowerCase().includes("already a member")) {
+                  joined = true;
+                  localStorage.removeItem(`pending_comm_${user.id}_${id}`);
+                } else if (errMsg.toLowerCase().includes("pending join request")) {
+                  pending = true;
+                }
+              }
+            }
+          }
+
           setIsJoined(joined);
+          setIsPending(pending);
 
           if (joined) {
-            // Fetch decisions for this community
-            const decRes = await api.get('/api/decisions');
-            if (decRes.data?.success) {
-              const commDecisions = decRes.data.data.filter(d => d.communityId === parseInt(id));
-              setDecisions(commDecisions);
+            setDecisions(commDecisions);
+            if (!joinedList.includes(parseInt(id))) {
+              localStorage.setItem(`joined_comm_${user?.id}`, JSON.stringify([...joinedList, parseInt(id)]));
             }
           }
         }
@@ -66,18 +99,22 @@ const CommunityDetails = () => {
         // Leave
         await api.delete(`/api/communities/${id}/members/${currentUser.id}`);
         setIsJoined(false);
+        setIsPending(false);
         setCommunity(prev => ({ ...prev, memberCount: Math.max(0, prev.memberCount - 1) }));
         const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${currentUser.id}`) || "[]");
         localStorage.setItem(`joined_comm_${currentUser.id}`, JSON.stringify(joinedList.filter(x => x !== parseInt(id))));
+        localStorage.removeItem(`pending_comm_${currentUser.id}_${id}`);
         setDecisions([]); // Hide decisions
       } else {
         // Request Join
         const res = await api.post(`/api/communities/${id}/join`);
-        const msg = res.data?.message || res.data?.data || "Join request sent.";
-        alert(msg);
+        const detail = res.data?.data || "";
+        const msg = res.data?.message || "Join request processed.";
         
-        if (msg.toLowerCase().includes("joined")) {
+        if (detail.toLowerCase().includes("joined")) {
+          alert("Joined community successfully!");
           setIsJoined(true);
+          setIsPending(false);
           setCommunity(prev => ({ ...prev, memberCount: prev.memberCount + 1 }));
           const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${currentUser.id}`) || "[]");
           if (!joinedList.includes(parseInt(id))) {
@@ -89,11 +126,37 @@ const CommunityDetails = () => {
             const commDecisions = decRes.data.data.filter(d => d.communityId === parseInt(id));
             setDecisions(commDecisions);
           }
+        } else {
+          alert(detail || msg);
+          setIsPending(true);
+          localStorage.setItem(`pending_comm_${currentUser.id}_${id}`, "true");
         }
       }
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "An error occurred.");
+      const errMsg = err.response?.data?.message || "";
+      if (errMsg.toLowerCase().includes("already a member")) {
+        alert("You are already a member of this community!");
+        setIsJoined(true);
+        setIsPending(false);
+        localStorage.removeItem(`pending_comm_${currentUser.id}_${id}`);
+        const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${currentUser.id}`) || "[]");
+        if (!joinedList.includes(parseInt(id))) {
+          localStorage.setItem(`joined_comm_${currentUser.id}`, JSON.stringify([...joinedList, parseInt(id)]));
+        }
+        // Fetch decisions now that they are joined
+        const decRes = await api.get('/api/decisions');
+        if (decRes.data?.success) {
+          const commDecisions = decRes.data.data.filter(d => d.communityId === parseInt(id));
+          setDecisions(commDecisions);
+        }
+      } else if (errMsg.toLowerCase().includes("pending join request")) {
+        alert("Your join request is already pending moderator approval!");
+        setIsPending(true);
+        localStorage.setItem(`pending_comm_${currentUser.id}_${id}`, "true");
+      } else {
+        alert(errMsg || "An error occurred.");
+      }
     }
   };
 
@@ -159,7 +222,7 @@ const CommunityDetails = () => {
 
       {/* Community Header */}
       <div className="glass-panel" style={{ padding: '40px', position: 'relative', overflow: 'hidden', marginBottom: '40px' }}>
-        <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', background: 'var(--neon-cyan)', opacity: '0.1', filter: 'blur(50px)', borderRadius: '50%' }}></div>
+        <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', background: 'var(--neon-cyan)', opacity: '0.1', filter: 'blur(50px)', borderRadius: '50%', pointerEvents: 'none' }}></div>
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
           <div>
@@ -195,6 +258,26 @@ const CommunityDetails = () => {
                   Manage Invitations
                 </button>
               </>
+            ) : isPending ? (
+              <button 
+                disabled
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 165, 0, 0.3)',
+                  background: 'rgba(255, 165, 0, 0.1)',
+                  color: 'orange',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'default'
+                }}
+              >
+                <Clock size={18} /> Pending Approval
+              </button>
             ) : (
               <button 
                 onClick={handleToggleJoin}
