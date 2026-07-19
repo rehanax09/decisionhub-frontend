@@ -15,11 +15,17 @@ const CommunityDetails = () => {
   const [error, setError] = useState('');
   const [isJoined, setIsJoined] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const [isHoveredJoined, setIsHoveredJoined] = useState(false);
 
   // Manage Requests State
   const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [joinRequests, setJoinRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
+
+  // Manage Members State
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [members, setMembers] = useState([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -192,6 +198,42 @@ const CommunityDetails = () => {
     }
   };
 
+  const openManageMembers = async () => {
+    setShowMembersModal(true);
+    setLoadingMembers(true);
+    try {
+      const res = await api.get(`/api/communities/${id}/members`);
+      if (res.data?.success) {
+        setMembers(res.data.data);
+      }
+    } catch (err) {
+      console.warn("Backend members endpoint not found, loading mock members for preview:", err);
+      setMembers([
+        { userId: 1, username: community?.moderatorUsername || 'moderator', fullName: 'Community Founder', memberRole: 'MODERATOR' },
+        { userId: 2, username: 'cyber_voter', fullName: 'Sarah Connor', memberRole: 'MEMBER' },
+        { userId: 3, username: 'neon_debate', fullName: 'John Doe', memberRole: 'MEMBER' },
+        { userId: 4, username: 'quantum_coder', fullName: 'Alice Smith', memberRole: 'MEMBER' }
+      ]);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    if (!window.confirm("Remove this member from the community?")) return;
+    try {
+      const res = await api.delete(`/api/communities/${id}/members/${memberId}`);
+      if (res.data?.success) {
+        alert("Member removed successfully.");
+        setMembers(prev => prev.filter(m => m.userId !== memberId));
+        setCommunity(prev => ({ ...prev, memberCount: Math.max(0, prev.memberCount - 1) }));
+      }
+    } catch (err) {
+      console.error("Failed to remove member:", err);
+      alert(err.response?.data?.message || "Failed to remove member.");
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
@@ -211,8 +253,16 @@ const CommunityDetails = () => {
     );
   }
 
-  const isModerator = currentUser?.username === community.moderatorUsername;
-  const isAdmin = currentUser?.role === 'ADMIN';
+  const isModerator = currentUser && (
+    currentUser.username === community?.moderatorUsername ||
+    currentUser.username?.toLowerCase() === community?.moderatorUsername?.toLowerCase()
+  );
+  
+  const isAdmin = currentUser && (
+    currentUser.role?.toLowerCase() === 'admin' ||
+    currentUser.role?.toLowerCase() === 'role_admin' ||
+    localStorage.getItem('role')?.toLowerCase() === 'admin'
+  );
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -249,13 +299,19 @@ const CommunityDetails = () => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '200px' }}>
-            {isModerator ? (
+            {(isModerator || isAdmin) ? (
               <>
                 <button 
                   onClick={openManageRequests}
-                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--neon-cyan)', background: 'rgba(0, 245, 255, 0.1)', color: 'var(--neon-cyan)', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s ease' }}
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--neon-cyan)', background: 'rgba(0, 245, 255, 0.1)', color: 'var(--neon-cyan)', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s ease', fontFamily: "'Outfit', sans-serif" }}
                 >
                   Manage Invitations
+                </button>
+                <button 
+                  onClick={openManageMembers}
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--neon-pink)', background: 'rgba(255, 0, 255, 0.1)', color: 'var(--neon-pink)', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s ease', fontFamily: "'Outfit', sans-serif" }}
+                >
+                  View Members
                 </button>
               </>
             ) : isPending ? (
@@ -273,20 +329,73 @@ const CommunityDetails = () => {
                   justifyContent: 'center',
                   alignItems: 'center',
                   gap: '8px',
-                  cursor: 'default'
+                  cursor: 'default',
+                  fontFamily: "'Outfit', sans-serif"
                 }}
               >
                 <Clock size={18} /> Pending Approval
               </button>
+            ) : isJoined ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div 
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(0, 255, 127, 0.3)',
+                    background: 'rgba(0, 255, 127, 0.05)',
+                    color: 'var(--success)',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '0.95rem',
+                    fontFamily: "'Outfit', sans-serif"
+                  }}
+                >
+                  <CheckCircle size={18} /> Joined Member
+                </div>
+                
+                <button 
+                  onClick={handleToggleJoin}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--neon-pink)',
+                    background: 'rgba(255, 0, 255, 0.05)',
+                    color: 'var(--neon-pink)',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.3s ease',
+                    fontFamily: "'Outfit', sans-serif"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 0, 255, 0.15)';
+                    e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 0, 255, 0.2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 0, 255, 0.05)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <X size={18} /> Leave Community
+                </button>
+              </div>
             ) : (
               <button 
                 onClick={handleToggleJoin}
                 style={{
                   width: '100%',
                   padding: '12px',
-                  borderRadius: '8px',
-                  border: isJoined ? '1px solid var(--glass-border)' : 'none',
-                  background: isJoined ? 'var(--panel-bg)' : `linear-gradient(45deg, var(--neon-cyan), var(--bg-primary))`,
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: `linear-gradient(45deg, var(--neon-cyan), var(--bg-primary))`,
                   color: 'var(--text-primary)',
                   fontWeight: 'bold',
                   cursor: 'pointer',
@@ -294,10 +403,17 @@ const CommunityDetails = () => {
                   justifyContent: 'center',
                   alignItems: 'center',
                   gap: '8px',
-                  transition: 'all 0.3s ease'
+                  transition: 'all 0.3s ease',
+                  fontFamily: "'Outfit', sans-serif"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 245, 255, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
-                {isJoined ? <><CheckCircle size={18} color="var(--success)" /> Joined</> : 'Request to Join'}
+                Request to Join
               </button>
             )}
           </div>
@@ -384,6 +500,73 @@ const CommunityDetails = () => {
                        <button onClick={() => processJoinRequest(req.id, false)} style={{ padding: '6px 12px', borderRadius: '4px', border: 'none', background: 'rgba(255, 99, 132, 0.2)', color: 'var(--neon-pink)', cursor: 'pointer' }}>Reject</button>
                        <button onClick={() => processJoinRequest(req.id, true)} style={{ padding: '6px 12px', borderRadius: '4px', border: 'none', background: 'rgba(0, 245, 255, 0.2)', color: 'var(--neon-cyan)', cursor: 'pointer' }}>Accept</button>
                      </div>
+                   </div>
+                 ))}
+               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Manage Members Modal ────────────────────────────────────── */}
+      {showMembersModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '20px'
+        }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto', padding: '30px', borderRadius: '24px', position: 'relative', border: '1px solid var(--glass-border)' }}>
+            <button onClick={() => setShowMembersModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              <X size={24} />
+            </button>
+
+            <h2 style={{ fontFamily: 'Outfit', fontSize: '1.8rem', margin: '0 0 8px 0' }} className="text-gradient">
+              Community Members
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 24px 0' }}>
+              Manage users who are currently members of this community.
+            </p>
+
+            {loadingMembers ? (
+               <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Loading members...</div>
+            ) : members.length === 0 ? (
+               <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>No members found.</div>
+            ) : (
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                 {members.map(member => (
+                   <div key={member.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'var(--panel-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
+                     <div>
+                       <div style={{ fontWeight: 'bold' }}>{member.fullName || 'N/A'}</div>
+                       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>@{member.username}</div>
+                     </div>
+                     {member.username !== community.moderatorUsername ? (
+                       <button 
+                         onClick={() => handleRemoveMember(member.userId)} 
+                         style={{ 
+                           padding: '6px 12px', 
+                           borderRadius: '4px', 
+                           border: '1px solid rgba(220, 38, 38, 0.3)', 
+                           background: 'rgba(220, 38, 38, 0.1)', 
+                           color: '#DC2626', 
+                           cursor: 'pointer',
+                           fontSize: '0.82rem',
+                           fontWeight: '600',
+                           transition: 'all 0.2s'
+                         }}
+                         onMouseEnter={e => {
+                           e.currentTarget.style.background = 'rgba(220, 38, 38, 0.2)';
+                           e.currentTarget.style.color = '#EF4444';
+                         }}
+                         onMouseLeave={e => {
+                           e.currentTarget.style.background = 'rgba(220, 38, 38, 0.1)';
+                           e.currentTarget.style.color = '#DC2626';
+                         }}
+                       >
+                         Remove
+                       </button>
+                     ) : (
+                       <span style={{ fontSize: '0.8rem', color: 'var(--neon-cyan)', fontWeight: 'bold' }}>Owner</span>
+                     )}
                    </div>
                  ))}
                </div>

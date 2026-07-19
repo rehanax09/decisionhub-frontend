@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ThumbsUp, ThumbsDown, MessageSquare, BarChart2, CheckCircle, ArrowLeft, Trash2 } from 'lucide-react';
+import { MessageSquare, CheckCircle, ArrowLeft, Trash2, Edit3, Plus, X, BarChart2, Check } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ChartTooltip, Legend } from 'recharts';
 import api from '../../api/api';
 
 const DecisionDetails = () => {
@@ -12,12 +13,36 @@ const DecisionDetails = () => {
   const [votedOptionId, setVotedOptionId] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
 
+  // Unified Board & Options Edit States
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editOptions, setEditOptions] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+
   // Comments local state for discussion
   const [comments, setComments] = useState([
     { id: 1, author: 'Alex_Neural', text: 'This choice depends heavily on current career progression goals.', time: '1 hour ago' },
     { id: 2, author: 'WealthBuilder', text: 'I agree. High upfront costs are worth the networking opportunities.', time: '30 mins ago' }
   ]);
   const [newComment, setNewComment] = useState('');
+
+  const fetchDecisionDetails = async () => {
+    try {
+      const res = await api.get(`/api/decisions/${id}`);
+      if (res.data?.success) {
+        setDecision(res.data.data);
+        if (res.data.data.votedOptionId) {
+          setVotedOptionId(Number(res.data.data.votedOptionId));
+        } else {
+          setVotedOptionId(null);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to refresh decision details:", err);
+    }
+  };
 
   useEffect(() => {
     const fetchDecisionAndUser = async () => {
@@ -54,15 +79,7 @@ const DecisionDetails = () => {
       const res = await api.post(`/api/decisions/${id}/votes`, { optionId, voteType: 'UPVOTE' });
       if (res.data?.success) {
         setVotedOptionId(optionId);
-        
-        // Refresh decision to update scores
-        const decisionRes = await api.get(`/api/decisions/${id}`);
-        if (decisionRes.data?.success) {
-          setDecision(decisionRes.data.data);
-          if (decisionRes.data.data.votedOptionId) {
-            setVotedOptionId(Number(decisionRes.data.data.votedOptionId));
-          }
-        }
+        await fetchDecisionDetails();
       }
     } catch (err) {
       console.error("Failed to cast vote:", err);
@@ -87,6 +104,124 @@ const DecisionDetails = () => {
     }
   };
 
+  // Unified Edit Form Handlers
+  const startEdit = () => {
+    setEditTitle(decision.title || '');
+    setEditDescription(decision.description || '');
+    setEditCategory(decision.category || 'Technology');
+    setEditOptions(
+      decision.options ? decision.options.map(opt => ({ ...opt })) : []
+    );
+    setShowEditModal(true);
+  };
+
+  const handleAddOptionField = () => {
+    setEditOptions([
+      { optionTitle: '', description: '', pros: '', cons: '' },
+      ...editOptions
+    ]);
+  };
+
+  const handleRemoveOptionField = (index) => {
+    const target = editOptions[index];
+    const activeCount = editOptions.filter(o => !o.isDeleted).length;
+    
+    if (activeCount <= 2 && !target.isDeleted) {
+      alert("A decision board must have at least two options.");
+      return;
+    }
+
+    if (target.id) {
+      const updated = [...editOptions];
+      updated[index] = { ...target, isDeleted: true };
+      setEditOptions(updated);
+    } else {
+      setEditOptions(editOptions.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleOptionFieldChange = (index, field, value) => {
+    const updated = [...editOptions];
+    updated[index] = { ...updated[index], [field]: value };
+    setEditOptions(updated);
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!editTitle.trim() || !editDescription.trim()) {
+      alert("Title and description are required.");
+      return;
+    }
+
+    const activeOptions = editOptions.filter(o => !o.isDeleted);
+    if (activeOptions.length < 2) {
+      alert("A decision board must have at least two options.");
+      return;
+    }
+
+    if (activeOptions.some(opt => !opt.optionTitle.trim())) {
+      alert("All options must have a title.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // 1. Update Board metadata
+      await api.put(`/api/decisions/${id}`, {
+        title: editTitle,
+        description: editDescription,
+        category: editCategory
+      });
+
+      // 2. Add / Edit / Delete options based on state
+      const apiCalls = [];
+
+      for (const opt of editOptions) {
+        if (opt.id) {
+          if (opt.isDeleted) {
+            apiCalls.push(api.delete(`/api/decisions/${id}/options/${opt.id}`));
+          } else {
+            const original = decision.options.find(o => o.id === opt.id);
+            const isChanged = !original || 
+              original.optionTitle !== opt.optionTitle ||
+              original.description !== opt.description ||
+              original.pros !== opt.pros ||
+              original.cons !== opt.cons;
+              
+            if (isChanged) {
+              apiCalls.push(api.put(`/api/decisions/${id}/options/${opt.id}`, {
+                optionTitle: opt.optionTitle,
+                description: opt.description,
+                pros: opt.pros,
+                cons: opt.cons
+              }));
+            }
+          }
+        } else {
+          apiCalls.push(api.post(`/api/decisions/${id}/options`, {
+            optionTitle: opt.optionTitle,
+            description: opt.description,
+            pros: opt.pros,
+            cons: opt.cons
+          }));
+        }
+      }
+
+      if (apiCalls.length > 0) {
+        await Promise.all(apiCalls);
+      }
+
+      await fetchDecisionDetails();
+      setShowEditModal(false);
+      alert("Decision board and options updated successfully!");
+    } catch (err) {
+      console.error("Failed to save board details:", err);
+      alert(err.response?.data?.message || "Failed to save changes.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleAddComment = (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
@@ -94,7 +229,7 @@ const DecisionDetails = () => {
       ...prev,
       {
         id: Date.now(),
-        author: 'You (admin)',
+        author: currentUser?.username || 'You',
         text: newComment,
         time: 'Just now'
       }
@@ -121,6 +256,9 @@ const DecisionDetails = () => {
     );
   }
 
+  const isOwner = currentUser && (currentUser.id === decision.userId || currentUser.role === 'ADMIN');
+  const visibleOptionsEdit = editOptions.map((opt, idx) => ({ opt, idx })).filter(x => !x.opt.isDeleted);
+
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
       
@@ -131,7 +269,7 @@ const DecisionDetails = () => {
         </Link>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
-          <div>
+          <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
               {decision.category && (
                 <span style={{ color: 'var(--neon-cyan)', fontSize: '0.9rem', background: 'rgba(0,245,255,0.1)', padding: '4px 8px', borderRadius: '4px' }}>
@@ -148,44 +286,28 @@ const DecisionDetails = () => {
             </p>
           </div>
 
-          {currentUser && (currentUser.id === decision.userId || currentUser.role === 'ADMIN') && (
-            <button
-              onClick={handleDelete}
-              className="btn-danger"
-              style={{
-                background: 'rgba(255, 0, 92, 0.1)',
-                border: '1px solid rgba(255, 0, 92, 0.3)',
-                color: 'var(--neon-pink)',
-                padding: '10px 20px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontFamily: 'Outfit',
-                fontSize: '0.95rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 0, 92, 0.2)';
-                e.currentTarget.style.borderColor = 'var(--neon-pink)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 0, 92, 0.1)';
-                e.currentTarget.style.borderColor = 'rgba(255, 0, 92, 0.3)';
-              }}
-            >
-              <Trash2 size={16} /> Delete Board
-            </button>
+          {isOwner && (
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={startEdit}
+                className="btn-secondary"
+              >
+                <Edit3 size={16} /> Edit Board
+              </button>
+              <button
+                onClick={handleDelete}
+                className="btn-destructive"
+              >
+                <Trash2 size={16} /> Delete Board
+              </button>
+            </div>
           )}
         </div>
       </div>
 
-
-
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '20px', borderBottom: '1px solid var(--glass-border)', marginBottom: '30px' }}>
-        {['Overview', 'Discussion'].map(tab => (
+        {['Overview', 'Discussion', 'Poll Results'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab.toLowerCase())}
@@ -220,9 +342,10 @@ const DecisionDetails = () => {
           {/* Options & Voting */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <h3 style={{ fontFamily: 'Outfit', margin: 0, color: 'var(--text-primary)' }}>Available Options</h3>
+
             {decision.options && decision.options.length > 0 ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-                {decision.options.map(option => {
+                {[...decision.options].sort((a, b) => a.id - b.id).map(option => {
                   const isVoted = votedOptionId === option.id;
                   return (
                     <div key={option.id} className="glass-panel" style={{ 
@@ -247,7 +370,7 @@ const DecisionDetails = () => {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
                         {option.pros && (
                           <div style={{ fontSize: '0.85rem' }}>
-                            <span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold', marginRight: '6px' }}>Pros:</span>
+                            <span style={{ color: 'var(--success)', fontWeight: 'bold', marginRight: '6px' }}>Pros:</span>
                             <span style={{ color: 'var(--text-secondary)' }}>{option.pros}</span>
                           </div>
                         )}
@@ -318,6 +441,401 @@ const DecisionDetails = () => {
               <MessageSquare size={16} /> Comment
             </button>
           </form>
+        </div>
+      )}
+
+      {activeTab === 'poll results' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+          
+          {/* Top Banner Recommendation */}
+          <div className="glass-panel" style={{ padding: '24px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '8px', borderRadius: 'var(--radius-lg)' }}>
+            {(() => {
+              const totalVotes = decision.options.reduce((sum, opt) => sum + (opt.score || 0), 0);
+              const sortedOptions = [...decision.options].sort((a, b) => (b.score || 0) - (a.score || 0));
+              const leadingOption = sortedOptions[0];
+              const isDraw = sortedOptions.length > 1 && sortedOptions[0].score === sortedOptions[1].score && sortedOptions[0].score > 0;
+              const hasVotes = totalVotes > 0;
+
+              return hasVotes ? (
+                isDraw ? (
+                  <>
+                    <h2 style={{ color: 'var(--neon-cyan)', margin: 0, fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      🤝 Current State: Tie
+                    </h2>
+                    <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.95rem' }}>
+                      The leading options are currently tied in vote score. Cast a vote to break the tie!
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 style={{ color: 'var(--neon-cyan)', margin: 0, fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      🏆 Leading Option: {leadingOption.optionTitle}
+                    </h2>
+                    <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.95rem' }}>
+                      Based on <strong>{totalVotes} total votes</strong>, {leadingOption.optionTitle} is leading with <strong>{Math.round((leadingOption.score / totalVotes) * 100)}%</strong> of the network consensus.
+                    </p>
+                  </>
+                )
+              ) : (
+                <>
+                  <h2 style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '1.4rem' }}>
+                    📊 Awaiting Votes
+                  </h2>
+                  <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.95rem' }}>
+                    No votes have been cast yet. Cast a vote in the Overview tab to update these results!
+                  </p>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* Split grid: Progress bars list on left, Donut chart on right */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '30px' }}>
+            
+            {/* Vote Percentages Lists */}
+            <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px', borderRadius: 'var(--radius-lg)' }}>
+              <h3 style={{ margin: 0, fontFamily: 'Outfit' }}>Vote Breakdown</h3>
+              
+              {(() => {
+                const totalVotes = decision.options.reduce((sum, opt) => sum + (opt.score || 0), 0);
+                const sortedOptions = [...decision.options].sort((a, b) => (b.score || 0) - (a.score || 0));
+                const leadingOption = sortedOptions[0];
+                const isDraw = sortedOptions.length > 1 && sortedOptions[0].score === sortedOptions[1].score && sortedOptions[0].score > 0;
+                const hasVotes = totalVotes > 0;
+                const CHART_COLORS = ['#00F5FF', '#FF00FF', '#8A2BE2', '#00FF99'];
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {decision.options.map((opt, idx) => {
+                      const voteCount = opt.score || 0;
+                      const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+                      const color = CHART_COLORS[idx % CHART_COLORS.length];
+                      const isWinner = hasVotes && !isDraw && opt.id === leadingOption.id;
+
+                      return (
+                        <div key={opt.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: '600', color: isWinner ? 'var(--text-primary)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {opt.optionTitle} {isWinner && <Check size={16} color="var(--success)" />}
+                            </span>
+                            <span style={{ fontSize: '0.9rem', color: color, fontWeight: 'bold' }}>
+                              {voteCount} {voteCount === 1 ? 'vote' : 'votes'} ({percentage}%)
+                            </span>
+                          </div>
+                          {/* Progress Bar Container */}
+                          <div style={{ width: '100%', height: '10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '5px', overflow: 'hidden' }}>
+                            <div style={{ 
+                              width: `${percentage}%`, 
+                              height: '100%', 
+                              background: color, 
+                              borderRadius: '5px',
+                              boxShadow: `0 0 8px ${color}80`,
+                              transition: 'width 0.6s cubic-bezier(0.1, 0.8, 0.2, 1)'
+                            }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Donut Chart Visualization */}
+            <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-lg)' }}>
+              <h3 style={{ marginBottom: '20px', fontFamily: 'Outfit' }}>Consensus Share</h3>
+              
+              {(() => {
+                const totalVotes = decision.options.reduce((sum, opt) => sum + (opt.score || 0), 0);
+                const pieData = decision.options
+                  .map(opt => ({
+                    name: opt.optionTitle,
+                    value: opt.score || 0
+                  }))
+                  .filter(d => d.value > 0);
+                const CHART_COLORS = ['#00F5FF', '#FF00FF', '#8A2BE2', '#00FF99'];
+
+                return totalVotes > 0 ? (
+                  <div style={{ width: '100%', height: '240px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          innerRadius={60}
+                          outerRadius={85}
+                          paddingAngle={4}
+                          dataKey="value"
+                          stroke="none"
+                        >
+                          {pieData.map((entry, index) => {
+                            const origIndex = decision.options.findIndex(o => o.optionTitle === entry.name);
+                            return (
+                              <Cell key={`cell-${index}`} fill={CHART_COLORS[origIndex % CHART_COLORS.length]} />
+                            );
+                          })}
+                        </Pie>
+                        <ChartTooltip contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '8px' }} />
+                        <Legend verticalAlign="bottom" height={36} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div style={{ height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+                    <p>Donut chart will display once votes are received.</p>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Qualitative Side-by-Side Comparison */}
+          <div className="glass-panel" style={{ padding: '30px', borderRadius: 'var(--radius-lg)' }}>
+            <h3 style={{ marginBottom: '24px', fontFamily: 'Outfit' }}>Qualitative Side-by-Side Comparison</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '20px' }}>
+              {decision.options.map((opt, idx) => (
+                <div key={opt.id} style={{ flex: 1, minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '16px', borderRight: idx === decision.options.length - 1 ? 'none' : '1px solid var(--glass-border)', paddingRight: '20px' }}>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)' }}>{opt.optionTitle}</h4>
+                    {opt.description && (
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '6px', lineHeight: '1.4' }}>{opt.description}</p>
+                    )}
+                  </div>
+                  
+                  {/* Pros */}
+                  <div>
+                    <div style={{ color: 'var(--success)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '6px' }}>Pros</div>
+                    {opt.pros ? (
+                      <ul style={{ paddingLeft: '16px', margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                        {opt.pros.split(',').map((pro, pIdx) => (
+                          <li key={pIdx}>{pro.trim()}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic', margin: 0 }}>None mentioned</p>
+                    )}
+                  </div>
+
+                  {/* Cons */}
+                  <div>
+                    <div style={{ color: 'var(--neon-pink)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '6px' }}>Cons</div>
+                    {opt.cons ? (
+                      <ul style={{ paddingLeft: '16px', margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                        {opt.cons.split(',').map((con, cIdx) => (
+                          <li key={cIdx}>{con.trim()}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic', margin: 0 }}>None mentioned</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* ── Unified Edit Modal ────────────────────────────────────────── */}
+      {showEditModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(12px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }} onClick={() => { if (!isSaving) setShowEditModal(false); }}>
+          <div className="glass-panel modal-animate" style={{
+            width: '100%',
+            maxWidth: '680px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: '35px',
+            borderRadius: '24px',
+            position: 'relative',
+            background: 'rgba(15, 15, 15, 0.95)',
+            border: '1px solid var(--glass-border)',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 2px rgba(0, 245, 255, 0.3)'
+          }} onClick={e => e.stopPropagation()}>
+            
+            <button 
+              disabled={isSaving}
+              onClick={() => setShowEditModal(false)}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'color 0.2s'
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--neon-pink)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+            >
+              <X size={22} />
+            </button>
+
+            <h2 style={{ fontFamily: 'Outfit', fontSize: '1.8rem', margin: '0 0 8px 0', textShadow: '0 0 10px rgba(0, 245, 255, 0.3)' }} className="text-gradient">
+              Edit Decision Board & Options
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 24px 0', lineHeight: '1.4' }}>
+              Modify the board parameters and option choices in a single unified form.
+            </p>
+
+            <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              
+              {/* Board Details */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '20px', borderBottom: '1px solid var(--glass-border)' }}>
+                <h4 style={{ margin: 0, fontFamily: 'Outfit', color: 'var(--neon-cyan)' }}>Board Parameters</h4>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: '600' }}>Decision Title</label>
+                  <input 
+                    type="text"
+                    required
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="input-premium"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: '600' }}>Category</label>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={editCategory}
+                      onChange={(e) => setEditCategory(e.target.value)}
+                      className="input-premium"
+                      style={{ appearance: 'none' }}
+                    >
+                      <option value="Technology" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Technology</option>
+                      <option value="Finance" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Finance</option>
+                      <option value="Career" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Career</option>
+                      <option value="Travel" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Travel</option>
+                      <option value="Lifestyle" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Lifestyle</option>
+                    </select>
+                    <div style={{ position: 'absolute', right: '16px', top: '18px', pointerEvents: 'none', width: '0', height: '0', borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--text-secondary)' }}></div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: '600' }}>Description</label>
+                  <textarea 
+                    rows={3}
+                    required
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    className="input-premium"
+                    style={{ resize: 'none' }}
+                  />
+                </div>
+              </div>
+
+              {/* Option Choices */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4 style={{ margin: 0, fontFamily: 'Outfit', color: 'var(--neon-cyan)' }}>Option Choices</h4>
+                  <button type="button" onClick={handleAddOptionField} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', fontSize: '0.8rem', borderRadius: 'var(--radius-xl)' }}>
+                    <Plus size={14} /> Add Option
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {visibleOptionsEdit.map(({ opt, idx }) => (
+                    <div key={idx} className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.01)', position: 'relative' }}>
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemoveOptionField(idx)} 
+                        style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: '#DC2626', cursor: 'pointer', transition: 'all 0.2s' }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.transform = 'scale(1.1)';
+                          e.currentTarget.style.color = '#EF4444';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.transform = 'none';
+                          e.currentTarget.style.color = '#DC2626';
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '600' }}>Option Title</label>
+                          <input 
+                            type="text"
+                            required
+                            placeholder="Option Title"
+                            value={opt.optionTitle}
+                            onChange={(e) => handleOptionFieldChange(idx, 'optionTitle', e.target.value)}
+                            className="input-premium"
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '600' }}>Description</label>
+                          <input 
+                            type="text"
+                            placeholder="Brief description"
+                            value={opt.description || ''}
+                            onChange={(e) => handleOptionFieldChange(idx, 'description', e.target.value)}
+                            className="input-premium"
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--success)', fontWeight: '600' }}>Pros</label>
+                            <input 
+                              type="text"
+                              placeholder="Pros"
+                              value={opt.pros || ''}
+                              onChange={(e) => handleOptionFieldChange(idx, 'pros', e.target.value)}
+                              className="input-premium"
+                            />
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--neon-pink)', fontWeight: '600' }}>Cons</label>
+                            <input 
+                              type="text"
+                              placeholder="Cons"
+                              value={opt.cons || ''}
+                              onChange={(e) => handleOptionFieldChange(idx, 'cons', e.target.value)}
+                              className="input-premium"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button 
+                type="submit" 
+                className="btn-primary" 
+                disabled={isSaving}
+                style={{ 
+                  padding: '14px', 
+                  fontSize: '1rem', 
+                  marginTop: '10px',
+                  boxShadow: 'var(--glow-cyan)'
+                }}
+              >
+                {isSaving ? 'Saving Changes...' : 'Save All Details'}
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>

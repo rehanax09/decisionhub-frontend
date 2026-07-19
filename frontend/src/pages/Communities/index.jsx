@@ -4,14 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../api/api';
 
 const CATEGORY_STYLES = {
-  Technology: { color: 'var(--neon-cyan)', icon: <TrendingUp size={24} /> },
-  Finance:    { color: 'var(--success)',   icon: <Shield size={24} /> },
-  Career:     { color: 'var(--accent-purple)', icon: <Users size={24} /> },
-  Travel:     { color: 'var(--neon-pink)', icon: <MessageSquare size={24} /> },
-  Lifestyle:  { color: '#FF9500',          icon: <Users size={24} /> },
+  Technology: { color: 'var(--neon-cyan)', icon: <TrendingUp size={24} />, badgeClass: 'badge-cyan' },
+  Finance:    { color: 'var(--success)',   icon: <Shield size={24} />, badgeClass: 'badge-success' },
+  Career:     { color: 'var(--accent-purple)', icon: <Users size={24} />, badgeClass: 'badge-purple' },
+  Travel:     { color: 'var(--neon-pink)', icon: <MessageSquare size={24} />, badgeClass: 'badge-pink' },
+  Lifestyle:  { color: '#FF9500',          icon: <Users size={24} />, badgeClass: 'badge-secondary' },
 };
 
-const DEFAULT_STYLE = { color: 'var(--neon-cyan)', icon: <Users size={24} /> };
+const DEFAULT_STYLE = { color: 'var(--neon-cyan)', icon: <Users size={24} />, badgeClass: 'badge-cyan' };
 
 const Communities = () => {
   const navigate = useNavigate();
@@ -20,6 +20,7 @@ const Communities = () => {
   const [communities, setCommunities] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hoveredButtonId, setHoveredButtonId] = useState(null);
   
   // Create community modal state
   const [showModal, setShowModal] = useState(false);
@@ -71,6 +72,7 @@ const Communities = () => {
               ...c,
               color: styleInfo.color,
               icon: styleInfo.icon,
+              badgeClass: styleInfo.badgeClass,
               isJoined: isJoined,
               isPending: isPending
             };
@@ -120,6 +122,14 @@ const Communities = () => {
           if (!joinedList.includes(id)) {
             localStorage.setItem(`joined_comm_${currentUser.id}`, JSON.stringify([...joinedList, id]));
           }
+        } else {
+           localStorage.setItem(`pending_comm_${currentUser.id}_${id}`, "true");
+           setCommunities(prev => prev.map(c => {
+             if (c.id === id) {
+               return { ...c, isPending: true };
+             }
+             return c;
+           }));
         }
       }
     } catch (err) {
@@ -148,6 +158,7 @@ const Communities = () => {
           ...created,
           color: styleInfo.color,
           icon: styleInfo.icon,
+          badgeClass: styleInfo.badgeClass,
           isJoined: true // creator is automatically moderator and joined
         };
 
@@ -176,56 +187,52 @@ const Communities = () => {
   });
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '40px' }}>
       
       {/* Header & Search */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px', flexWrap: 'wrap', gap: '20px' }}>
         <div>
-          <h1 style={{ fontSize: '2.5rem', fontFamily: 'Outfit', margin: 0, marginBottom: '8px' }}>Communities</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Find your tribe. Debate, vote, and decide together.</p>
+          <h1 style={{ fontSize: '2.5rem', fontFamily: 'Outfit', margin: 0, marginBottom: '8px', textShadow: '0 0 20px rgba(0, 245, 255, 0.2)' }}>Communities</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem' }}>Find your tribe. Debate, vote, and decide together.</p>
         </div>
         
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ position: 'relative' }}>
-            <Search size={20} style={{ position: 'absolute', left: 14, top: 10, color: 'var(--text-secondary)' }} />
+            <Search size={18} style={{ position: 'absolute', left: 14, top: 13, color: 'var(--text-secondary)' }} />
             <input 
               type="text" 
               placeholder="Search communities..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              className="input-premium"
               style={{
-                background: 'var(--panel-bg)',
+                paddingLeft: '45px',
+                borderRadius: 'var(--radius-xl)',
+                width: '260px',
+                background: 'rgba(0,0,0,0.45)',
                 border: '1px solid var(--glass-border)',
-                borderRadius: '20px',
-                padding: '10px 16px 10px 45px',
-                color: 'var(--text-primary)',
-                outline: 'none',
-                width: '300px',
-                transition: 'border-color 0.3s ease'
-              }} 
-              onFocus={(e) => e.target.style.borderColor = 'var(--neon-cyan)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--glass-border)'}
+                height: '44px'
+              }}
             />
           </div>
           
           <div style={{ position: 'relative' }}>
-            <Filter size={20} style={{ position: 'absolute', left: 14, top: 10, color: 'var(--text-secondary)' }} />
+            <Filter size={18} style={{ position: 'absolute', left: 14, top: 13, color: 'var(--text-secondary)' }} />
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
+              className="input-premium"
               style={{
                 appearance: 'none',
-                background: 'var(--panel-bg)',
-                border: '1px solid var(--glass-border)',
-                borderRadius: '20px',
-                padding: '10px 16px 10px 45px',
-                color: 'var(--text-primary)',
-                outline: 'none',
+                paddingLeft: '45px',
+                paddingRight: '35px',
+                borderRadius: 'var(--radius-xl)',
                 cursor: 'pointer',
-                transition: 'border-color 0.3s ease'
+                background: 'rgba(0,0,0,0.45)',
+                border: '1px solid var(--glass-border)',
+                height: '44px',
+                width: '180px'
               }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--neon-cyan)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--glass-border)'}
             >
               <option value="All" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>All Categories</option>
               <option value="Technology" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Technology</option>
@@ -234,31 +241,34 @@ const Communities = () => {
               <option value="Travel" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Travel</option>
               <option value="Lifestyle" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Lifestyle</option>
             </select>
+            <div style={{ position: 'absolute', right: '14px', top: '15px', pointerEvents: 'none', width: '0', height: '0', borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--text-secondary)' }}></div>
           </div>
 
           <button 
-            className="btn-primary" 
+            className="btn-primary pulse-button" 
             onClick={() => setShowModal(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '44px', padding: '0 20px', borderRadius: 'var(--radius-xl)' }}
           >
-            <PlusCircle size={20} /> Create Group
+            <PlusCircle size={18} /> Create Group
           </button>
         </div>
       </div>
 
       {/* Loading State */}
       {loading ? (
-        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
+        <div style={{ padding: '80px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
+          <div style={{ border: '3px solid rgba(0, 245, 255, 0.1)', borderTop: '3px solid var(--neon-cyan)', borderRadius: '50%', width: '40px', height: '40px', animation: 'spin 1s linear infinite', margin: '0 auto 20px auto' }}></div>
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
           <h3>Loading communities...</h3>
         </div>
       ) : (
         /* Communities Grid */
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '30px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '30px' }}>
           
           {filteredCommunities.map((community) => (
             <div 
               key={community.id} 
-              className="glass-panel" 
+              className="glass-panel card-animate" 
               onClick={() => navigate(`/communities/${community.id}`)}
               style={{ 
                 padding: '30px', 
@@ -266,108 +276,138 @@ const Communities = () => {
                 flexDirection: 'column', 
                 position: 'relative', 
                 cursor: 'pointer',
-                transition: 'transform 0.3s ease, box-shadow 0.3s ease'
+                transition: 'transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.4s ease, border-color 0.4s ease',
+                background: 'var(--glass-bg)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--glass-border)'
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.transform = 'translateY(-5px)';
-                e.currentTarget.style.boxShadow = `0 10px 30px ${community.color}30`;
+                e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
+                e.currentTarget.style.boxShadow = `0 15px 35px ${community.color}20, 0 0 1px ${community.color}`;
+                e.currentTarget.style.borderColor = community.color;
               }}
               onMouseOut={(e) => {
                 e.currentTarget.style.transform = 'none';
                 e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.borderColor = 'var(--glass-border)';
               }}
             >
               
               {/* Header: Icon & Title */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
                 <div style={{ 
-                  width: '50px', 
-                  height: '50px', 
-                  borderRadius: '12px', 
-                  background: `${community.color}20`, 
+                  width: '52px', 
+                  height: '52px', 
+                  borderRadius: 'var(--radius-md)', 
+                  background: `${community.color}15`, 
                   color: community.color,
                   display: 'flex', 
                   justifyContent: 'center', 
                   alignItems: 'center',
-                  boxShadow: `0 0 15px ${community.color}40`
+                  boxShadow: `0 0 15px ${community.color}30`,
+                  border: `1px solid ${community.color}30`,
+                  transition: 'transform 0.3s ease'
                 }}>
                   {community.icon}
                 </div>
-                <div>
-                  <h2 style={{ fontSize: '1.3rem', fontFamily: 'Outfit', margin: 0 }}>{community.name}</h2>
-                  <div style={{ display: 'flex', gap: '12px', color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Users size={14} /> {community.memberCount} members</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><MessageSquare size={14} /> @{community.moderatorUsername || 'moderator'}</span>
+                <div style={{ flex: 1 }}>
+                  <h2 style={{ fontSize: '1.25rem', fontFamily: 'Outfit', margin: 0, color: 'var(--text-primary)', lineHeight: '1.3' }}>{community.name}</h2>
+                  <div style={{ display: 'flex', gap: '12px', color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '5px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Users size={13} /> {community.memberCount} members</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}><MessageSquare size={13} /> @{community.moderatorUsername || 'moderator'}</span>
                   </div>
                 </div>
               </div>
 
               {/* Description */}
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5', flex: 1, marginBottom: '20px' }}>
-                {community.description || 'No description provided.'}
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: '1.6', flex: 1, marginBottom: '22px' }}>
+                {community.description || 'Join this group to debate and gather consensus together.'}
               </p>
 
               {/* Category Tag */}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
-                <span style={{ 
-                  background: 'var(--panel-bg)', 
-                  border: '1px solid var(--glass-border)',
-                  color: community.color,
-                  padding: '4px 10px',
-                  borderRadius: '12px',
-                  fontSize: '0.75rem'
-                }}>
+                <span className={`badge-premium ${community.badgeClass || 'badge-secondary'}`}>
                   #{community.category || 'General'}
                 </span>
               </div>
 
-              {/* Action Button */}
-              <div 
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!community.isJoined) {
+                    toggleJoin(community.id, community.isJoined);
+                  }
+                }}
+                onMouseEnter={() => !community.isJoined && setHoveredButtonId(community.id)}
+                onMouseLeave={() => setHoveredButtonId(null)}
                 style={{
                   width: '100%',
                   padding: '12px',
-                  borderRadius: '8px',
+                  borderRadius: 'var(--radius-sm)',
                   background: community.isJoined 
-                    ? 'rgba(0, 255, 127, 0.05)' 
+                    ? hoveredButtonId === community.id 
+                      ? 'rgba(0, 255, 127, 0.15)' 
+                      : 'rgba(0, 255, 127, 0.08)' 
                     : community.isPending 
-                      ? 'rgba(255, 165, 0, 0.05)' 
-                      : 'var(--panel-bg)',
+                      ? 'rgba(255, 165, 0, 0.08)' 
+                      : hoveredButtonId === community.id
+                        ? 'rgba(0, 245, 255, 0.15)'
+                        : 'rgba(255, 255, 255, 0.02)',
                   border: community.isJoined 
-                    ? '1px solid rgba(0, 255, 127, 0.3)' 
+                    ? hoveredButtonId === community.id 
+                      ? '1px solid rgba(0, 255, 127, 0.6)' 
+                      : '1px solid rgba(0, 255, 127, 0.35)' 
                     : community.isPending 
-                      ? '1px solid rgba(255, 165, 0, 0.3)' 
-                      : '1px solid var(--glass-border)',
+                      ? '1px solid rgba(255, 165, 0, 0.35)' 
+                      : hoveredButtonId === community.id
+                        ? '1px solid var(--neon-cyan)'
+                        : '1px solid var(--glass-border)',
                   color: community.isJoined 
                     ? 'var(--success)' 
                     : community.isPending 
-                      ? 'orange' 
-                      : 'var(--text-primary)',
-                  fontWeight: 'bold',
+                      ? '#FFA500' 
+                      : hoveredButtonId === community.id
+                        ? 'var(--neon-cyan)'
+                        : 'var(--text-primary)',
+                  fontWeight: '700',
+                  fontSize: '0.9rem',
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
                   gap: '8px',
                   transition: 'all 0.3s ease',
-                  boxShadow: community.isJoined ? '0 0 10px rgba(0, 255, 127, 0.1)' : 'none'
+                  boxShadow: community.isJoined 
+                    ? '0 0 10px rgba(0, 255, 127, 0.1)' 
+                    : hoveredButtonId === community.id
+                      ? '0 0 10px rgba(0, 245, 255, 0.15)'
+                      : 'none',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  cursor: community.isJoined ? 'default' : 'pointer',
+                  fontFamily: 'inherit'
                 }}
               >
                 {community.isJoined ? (
-                  <>Joined Community <CheckCircle size={18} /></>
+                  <>Joined Community <CheckCircle size={16} /></>
                 ) : community.isPending ? (
-                  <>Pending Approval <Clock size={18} /></>
+                  <>Pending Approval <Clock size={16} /></>
                 ) : (
-                  <>View Community <ArrowRight size={18} /></>
+                  hoveredButtonId === community.id ? (
+                    <>Join Community <PlusCircle size={16} /></>
+                  ) : (
+                    <>View Community <ArrowRight size={16} /></>
+                  )
                 )}
-              </div>
+              </button>
               
             </div>
           ))}
 
           {filteredCommunities.length === 0 && (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px', color: 'var(--text-secondary)' }}>
-              <Search size={40} style={{ opacity: 0.5, marginBottom: '16px' }} />
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '80px', color: 'var(--text-secondary)' }} className="glass-panel">
+              <Search size={44} style={{ opacity: 0.3, marginBottom: '16px', color: 'var(--neon-cyan)' }} />
               <h3>No communities found</h3>
-              <p>Try adjusting your search terms or create a new community.</p>
+              <p style={{ marginTop: '8px' }}>Try adjusting your search terms or create a new community.</p>
             </div>
           )}
           
@@ -383,20 +423,22 @@ const Communities = () => {
           width: '100vw',
           height: '100vh',
           background: 'rgba(0,0,0,0.85)',
-          backdropFilter: 'blur(10px)',
+          backdropFilter: 'blur(12px)',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
           zIndex: 9999,
           padding: '20px'
         }}>
-          <div className="glass-panel" style={{
+          <div className="glass-panel modal-animate" style={{
             width: '100%',
             maxWidth: '500px',
-            padding: '30px',
+            padding: '35px',
             borderRadius: '24px',
             position: 'relative',
-            border: '1px solid var(--glass-border)'
+            background: 'rgba(15, 15, 15, 0.9)',
+            border: '1px solid var(--glass-border)',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 2px rgba(0, 245, 255, 0.3)'
           }}>
             <button 
               onClick={() => setShowModal(false)}
@@ -407,22 +449,25 @@ const Communities = () => {
                 background: 'transparent',
                 border: 'none',
                 color: 'var(--text-secondary)',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: 'color 0.2s'
               }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--neon-pink)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
             >
-              <X size={24} />
+              <X size={22} />
             </button>
 
-            <h2 style={{ fontFamily: 'Outfit', fontSize: '1.8rem', margin: '0 0 8px 0' }} className="text-gradient">
+            <h2 style={{ fontFamily: 'Outfit', fontSize: '1.8rem', margin: '0 0 8px 0', textShadow: '0 0 10px rgba(0, 245, 255, 0.3)' }} className="text-gradient">
               Create Community
             </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 24px 0' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 24px 0', lineHeight: '1.4' }}>
               Launch a new hub to collaborate and gather consensus.
             </p>
 
             <form onSubmit={handleCreateCommunity} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: '500' }}>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: '600' }}>
                   Community Name
                 </label>
                 <input 
@@ -431,47 +476,35 @@ const Communities = () => {
                   placeholder="e.g. AI Pioneers"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  style={{
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--input-bg)',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    width: '100%'
-                  }}
+                  className="input-premium"
                   onFocus={(e) => e.target.style.border = '1px solid var(--neon-cyan)'}
                   onBlur={(e) => e.target.style.border = '1px solid var(--glass-border)'}
                 />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: '500' }}>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: '600' }}>
                   Category
                 </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  style={{
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--input-bg)',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    width: '100%'
-                  }}
-                >
-                  <option value="Technology" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Technology</option>
-                  <option value="Finance" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Finance</option>
-                  <option value="Career" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Career</option>
-                  <option value="Travel" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Travel</option>
-                  <option value="Lifestyle" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Lifestyle</option>
-                </select>
+                <div style={{ position: 'relative' }}>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="input-premium"
+                    style={{ appearance: 'none' }}
+                  >
+                    <option value="Technology" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Technology</option>
+                    <option value="Finance" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Finance</option>
+                    <option value="Career" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Career</option>
+                    <option value="Travel" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Travel</option>
+                    <option value="Lifestyle" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Lifestyle</option>
+                  </select>
+                  <div style={{ position: 'absolute', right: '16px', top: '18px', pointerEvents: 'none', width: '0', height: '0', borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--text-secondary)' }}></div>
+                </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: '500' }}>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: '600' }}>
                   Description
                 </label>
                 <textarea 
@@ -479,16 +512,8 @@ const Communities = () => {
                   placeholder="What is this community about?"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  style={{
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--input-bg)',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    width: '100%',
-                    resize: 'none'
-                  }}
+                  className="input-premium"
+                  style={{ resize: 'none' }}
                   onFocus={(e) => e.target.style.border = '1px solid var(--neon-cyan)'}
                   onBlur={(e) => e.target.style.border = '1px solid var(--glass-border)'}
                 />

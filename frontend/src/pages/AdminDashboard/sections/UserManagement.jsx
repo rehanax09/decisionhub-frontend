@@ -112,15 +112,15 @@ const UserManagement = () => {
                         {isAdmin ? 'ADMIN' : 'USER'}
                       </span>
                     </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 'bold', background: isActive ? 'rgba(0,255,153,0.1)' : 'rgba(255,0,0,0.1)', color: isActive ? 'var(--success)' : '#ff4444', border: `1px solid ${isActive ? 'rgba(0,255,153,0.3)' : 'rgba(255,0,0,0.3)'}` }}>
+                     <td style={{ padding: '14px 16px' }}>
+                      <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 'bold', background: isActive ? 'rgba(0,255,153,0.1)' : 'rgba(220,38,38,0.1)', color: isActive ? 'var(--success)' : '#DC2626', border: `1px solid ${isActive ? 'rgba(0,255,153,0.3)' : 'rgba(220,38,38,0.3)'}` }}>
                         {isActive ? 'ACTIVE' : 'SUSPENDED'}
                       </span>
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                         <button onClick={() => toggleStatus(user.id)} title={isActive ? 'Block user' : 'Unblock user'}
-                          style={{ padding: '6px', borderRadius: '8px', border: `1px solid ${isActive ? 'rgba(255,0,0,0.3)' : 'rgba(0,255,153,0.3)'}`, background: 'transparent', color: isActive ? '#ff4444' : 'var(--success)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                          style={{ padding: '6px', borderRadius: '8px', border: `1px solid ${isActive ? 'rgba(220,38,38,0.3)' : 'rgba(0,255,153,0.3)'}`, background: 'transparent', color: isActive ? '#DC2626' : 'var(--success)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                           {isActive ? <UserX size={16}/> : <UserCheck size={16}/>}
                         </button>
                         <button onClick={() => toggleRole(user.id)} title={isAdmin ? 'Demote to User' : 'Promote to Admin'}
@@ -128,7 +128,7 @@ const UserManagement = () => {
                           <Shield size={16}/>
                         </button>
                         <button onClick={() => deleteUser(user.id)} title="Delete user"
-                          style={{ padding: '6px', borderRadius: '8px', border: '1px solid rgba(255,0,0,0.3)', background: 'transparent', color: '#ff4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                          style={{ padding: '6px', borderRadius: '8px', border: '1px solid rgba(220,38,38,0.3)', background: 'transparent', color: '#DC2626', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                           <Trash2 size={16}/>
                         </button>
                       </div>

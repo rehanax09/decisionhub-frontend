@@ -49,35 +49,34 @@ const DecisionBoard = () => {
   }, [decisions, searchQuery, filterCategory]);
 
   return (
-    <div>
+    <div style={{ paddingBottom: '40px' }} className="card-animate">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '20px' }}>
         <div>
-          <h1 style={{ fontSize: '2rem', fontFamily: 'Outfit', margin: 0 }}>
+          <h1 style={{ fontSize: '2.5rem', fontFamily: 'Outfit', margin: 0, textShadow: '0 0 20px rgba(0, 245, 255, 0.2)' }}>
             {searchQuery ? `Search Results: "${searchQuery}"` : 'Decision Boards'}
           </h1>
-          <p style={{ color: 'var(--text-secondary)' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', marginTop: '6px' }}>
             {searchQuery ? `Showing results matching your search.` : `Explore and participate in the network's consensus.`}
           </p>
         </div>
 
         <div style={{ position: 'relative' }}>
-          <Filter size={20} style={{ position: 'absolute', left: 14, top: 10, color: 'var(--text-secondary)' }} />
+          <Filter size={18} style={{ position: 'absolute', left: 14, top: 13, color: 'var(--text-secondary)' }} />
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
+            className="input-premium"
             style={{
               appearance: 'none',
-              background: 'var(--panel-bg)',
-              border: '1px solid var(--glass-border)',
-              borderRadius: '20px',
-              padding: '10px 16px 10px 45px',
-              color: 'var(--text-primary)',
-              outline: 'none',
+              paddingLeft: '45px',
+              paddingRight: '35px',
+              borderRadius: 'var(--radius-xl)',
               cursor: 'pointer',
-              transition: 'border-color 0.3s ease'
+              background: 'rgba(0,0,0,0.45)',
+              border: '1px solid var(--glass-border)',
+              height: '44px',
+              width: '180px'
             }}
-            onFocus={(e) => e.target.style.borderColor = 'var(--neon-cyan)'}
-            onBlur={(e) => e.target.style.borderColor = 'var(--glass-border)'}
           >
             <option value="All" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>All Categories</option>
             <option value="Technology" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Technology</option>
@@ -86,61 +85,87 @@ const DecisionBoard = () => {
             <option value="Travel" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Travel</option>
             <option value="Lifestyle" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Lifestyle</option>
           </select>
+          <div style={{ position: 'absolute', right: '14px', top: '15px', pointerEvents: 'none', width: '0', height: '0', borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--text-secondary)' }}></div>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
+        <div style={{ padding: '80px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
+          <div style={{ border: '3px solid rgba(0, 245, 255, 0.1)', borderTop: '3px solid var(--neon-cyan)', borderRadius: '50%', width: '40px', height: '40px', animation: 'spin 1s linear infinite', margin: '0 auto 20px auto' }}></div>
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
           <h3>Loading decision boards...</h3>
         </div>
       ) : filteredDecisions.length === 0 ? (
-        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
+        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
+          <Search size={44} style={{ opacity: 0.3, marginBottom: '16px', color: 'var(--neon-cyan)' }} />
           <h3>No decisions found matching "{searchQuery}"</h3>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '30px' }}>
           {filteredDecisions.map((dec) => (
-            <div key={dec.id} className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                <h3 style={{ fontSize: '1.2rem', fontFamily: 'Outfit', flex: 1, margin: '0 10px 0 0' }}>{dec.title}</h3>
-                <span style={{ 
+            <div 
+              key={dec.id} 
+              className="glass-panel card-animate" 
+              style={{ 
+                padding: '28px', 
+                display: 'flex', 
+                flexDirection: 'column',
+                borderRadius: 'var(--radius-lg)',
+                transition: 'transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.4s ease, border-color 0.4s ease',
+                border: '1px solid var(--glass-border)'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
+                e.currentTarget.style.boxShadow = '0 15px 35px rgba(0, 245, 255, 0.18), 0 0 1px rgba(0, 245, 255, 0.5)';
+                e.currentTarget.style.borderColor = 'var(--neon-cyan)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.borderColor = 'var(--glass-border)';
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', gap: '10px' }}>
+                <h3 style={{ fontSize: '1.25rem', fontFamily: 'Outfit', flex: 1, margin: 0, color: 'var(--text-primary)', lineHeight: '1.3' }}>{dec.title}</h3>
+                <span className="badge-premium" style={{ 
                   background: dec.status === 'Closed' ? 'var(--chip-bg)' : 'rgba(0, 245, 255, 0.1)', 
                   color: dec.status === 'Closed' ? 'var(--text-secondary)' : 'var(--neon-cyan)',
+                  borderColor: dec.status === 'Closed' ? 'var(--glass-border)' : 'rgba(0, 245, 255, 0.25)',
                   padding: '4px 10px',
-                  borderRadius: '12px',
-                  fontSize: '0.75rem',
+                  borderRadius: 'var(--radius-xl)',
+                  fontSize: '0.72rem',
                   whiteSpace: 'nowrap'
                 }}>
                   {dec.status}
                 </span>
               </div>
               
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '20px', lineHeight: '1.5', flex: 1 }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', marginBottom: '20px', lineHeight: '1.6', flex: 1 }}>
                 {dec.description ? (dec.description.length > 120 ? `${dec.description.substring(0, 120)}...` : dec.description) : 'No description provided.'}
               </p>
               
               <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
                 {dec.category && (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--panel-bg)', padding: '4px 8px', borderRadius: '4px' }}>
+                  <span className="badge-premium badge-secondary" style={{ fontSize: '0.75rem', padding: '4px 10px' }}>
                     #{dec.category}
                   </span>
                 )}
                 {dec.communityName ? (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--neon-pink)', background: 'rgba(255, 99, 132, 0.1)', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(255, 99, 132, 0.3)' }}>
+                  <span className="badge-premium badge-pink" style={{ fontSize: '0.75rem', padding: '4px 10px' }}>
                     Community: {dec.communityName}
                   </span>
                 ) : (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--success)', background: 'rgba(0, 255, 127, 0.1)', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(0, 255, 127, 0.3)' }}>
+                  <span className="badge-premium badge-success" style={{ fontSize: '0.75rem', padding: '4px 10px' }}>
                     Public
                   </span>
                 )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', borderTop: '1px solid var(--glass-border)', paddingTop: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                  <ThumbsUp size={16} color="var(--neon-pink)" /> Active Consensus
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                  <ThumbsUp size={16} color="var(--neon-pink)" style={{ filter: 'drop-shadow(0 0 5px var(--neon-pink))' }} /> Active Consensus
                 </div>
-                <Link to={`/decision/${dec.id}`} className="btn-secondary" style={{ padding: '6px 16px', fontSize: '0.85rem' }}>
+                <Link to={`/decision/${dec.id}`} className="btn-secondary" style={{ padding: '8px 20px', fontSize: '0.82rem', borderRadius: 'var(--radius-sm)' }}>
                   View
                 </Link>
               </div>
@@ -150,7 +175,7 @@ const DecisionBoard = () => {
       )}
 
       {/* Floating Action Button */}
-      <Link to="/create-decision" style={{
+      <Link to="/create-decision" className="pulse-button" style={{
         position: 'fixed',
         bottom: '40px',
         right: '40px',
@@ -163,11 +188,17 @@ const DecisionBoard = () => {
         justifyContent: 'center',
         boxShadow: 'var(--glow-cyan)',
         color: 'black',
-        transition: 'transform 0.2s',
+        transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease',
         zIndex: 100
       }}
-      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'scale(1.15)';
+        e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 245, 255, 0.8), 0 0 35px rgba(0, 245, 255, 0.5)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'scale(1)';
+        e.currentTarget.style.boxShadow = 'var(--glow-cyan)';
+      }}
       >
         <Plus size={32} />
       </Link>

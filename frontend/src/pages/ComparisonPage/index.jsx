@@ -1,85 +1,243 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend
 } from 'recharts';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Check } from 'lucide-react';
+import api from '../../api/api';
 
 const ComparisonPage = () => {
   const { id } = useParams();
+  const [decision, setDecision] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const radarData = [
-    { subject: 'Cost (Lower is Better)', A: 30, B: 90, fullMark: 100 },
-    { subject: 'Benefits', A: 95, B: 70, fullMark: 100 },
-    { subject: 'Risk (Lower is Better)', A: 80, B: 40, fullMark: 100 },
-    { subject: 'Time to Value', A: 40, B: 90, fullMark: 100 },
-    { subject: 'Flexibility', A: 85, B: 60, fullMark: 100 },
-  ];
+  useEffect(() => {
+    const fetchDecision = async () => {
+      try {
+        const res = await api.get(`/api/decisions/${id}`);
+        if (res.data?.success) {
+          setDecision(res.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch decision for comparison:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDecision();
+  }, [id]);
 
-  const barData = [
-    { name: 'Option A (MBA)', score: 85 },
-    { name: 'Option B (Job)', score: 72 }
-  ];
+  if (loading) {
+    return (
+      <div style={{ padding: '80px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
+        <div style={{ border: '3px solid rgba(0, 245, 255, 0.1)', borderTop: '3px solid var(--neon-cyan)', borderRadius: '50%', width: '40px', height: '40px', animation: 'spin 1s linear infinite', margin: '0 auto 20px auto' }}></div>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+        <h3>Loading results...</h3>
+      </div>
+    );
+  }
+
+  if (!decision || !decision.options || decision.options.length === 0) {
+    return (
+      <div style={{ padding: '80px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
+        <h3>No options available to view.</h3>
+        <Link to={`/decision/${id}`} className="btn-secondary" style={{ marginTop: '20px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <ArrowLeft size={16} /> Back to Decision
+        </Link>
+      </div>
+    );
+  }
+
+  // Calculate vote totals and stats
+  const totalVotes = decision.options.reduce((sum, opt) => sum + (opt.score || 0), 0);
+
+  // Construct Pie/Donut Chart data (only show options with votes)
+  const pieData = decision.options
+    .map(opt => ({
+      name: opt.optionTitle,
+      value: opt.score || 0
+    }))
+    .filter(d => d.value > 0);
+
+  // Recommendation: Option with the highest score
+  const sortedOptions = [...decision.options].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const leadingOption = sortedOptions[0];
+  const isDraw = sortedOptions.length > 1 && sortedOptions[0].score === sortedOptions[1].score && sortedOptions[0].score > 0;
+  const hasVotes = totalVotes > 0;
+
+  // Curated color palette mapping for options
+  const CHART_COLORS = ['#00F5FF', '#FF00FF', '#8A2BE2', '#00FF99'];
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+    <div style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '40px' }}>
+      
+      {/* Header */}
+      <div style={{ marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '16px' }}>
         <Link to={`/decision/${id}`} style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
           <ArrowLeft size={24} />
         </Link>
         <div>
-          <h1 style={{ fontSize: '2rem', fontFamily: 'Outfit', margin: 0 }}>Comparison Matrix</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Advanced algorithmic breakdown</p>
+          <h1 style={{ fontSize: '2rem', fontFamily: 'Outfit', margin: 0 }}>Results Overview</h1>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>Consensus breakdown for: "{decision.title}"</p>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '30px', marginBottom: '30px' }}>
+      {/* Top Banner Recommendation */}
+      <div className="glass-panel" style={{ padding: '24px', marginBottom: '30px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {hasVotes ? (
+          isDraw ? (
+            <>
+              <h2 style={{ color: 'var(--neon-cyan)', margin: 0, fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🤝 Current State: Tie
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.95rem' }}>
+                The leading options are currently tied in vote score. Cast a vote to break the tie!
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 style={{ color: 'var(--neon-cyan)', margin: 0, fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🏆 Leading Option: {leadingOption.optionTitle}
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.95rem' }}>
+                Based on <strong>{totalVotes} total votes</strong>, {leadingOption.optionTitle} is leading with <strong>{Math.round((leadingOption.score / totalVotes) * 100)}%</strong> of the network consensus.
+              </p>
+            </>
+          )
+        ) : (
+          <>
+            <h2 style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '1.4rem' }}>
+              📊 Awaiting Votes
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.95rem' }}>
+              No votes have been cast yet. Share this decision board to gather consensus.
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* Split grid: Progress bars list on left, Donut chart on right */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '30px', marginBottom: '40px' }}>
         
-        {/* Radar Chart */}
-        <div className="glass-panel" style={{ padding: '30px' }}>
-          <h3 style={{ marginBottom: '20px', fontFamily: 'Outfit', textAlign: 'center' }}>Multi-Dimensional Analysis</h3>
-          <div style={{ height: '400px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: 'transparent' }} />
-                <Radar name="Option A (MBA)" dataKey="A" stroke="var(--neon-cyan)" fill="var(--neon-cyan)" fillOpacity={0.3} />
-                <Radar name="Option B (Job)" dataKey="B" stroke="var(--neon-pink)" fill="var(--neon-pink)" fillOpacity={0.3} />
-                <Legend />
-                <Tooltip contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '8px' }} />
-              </RadarChart>
-            </ResponsiveContainer>
+        {/* Vote Percentages Lists */}
+        <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <h3 style={{ margin: 0, fontFamily: 'Outfit' }}>Vote Breakdown</h3>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {decision.options.map((opt, idx) => {
+              const voteCount = opt.score || 0;
+              const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+              const color = CHART_COLORS[idx % CHART_COLORS.length];
+              const isWinner = hasVotes && !isDraw && opt.id === leadingOption.id;
+
+              return (
+                <div key={opt.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: '600', color: isWinner ? 'var(--text-primary)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {opt.optionTitle} {isWinner && <Check size={16} color="var(--success)" />}
+                    </span>
+                    <span style={{ fontSize: '0.9rem', color: color, fontWeight: 'bold' }}>
+                      {voteCount} {voteCount === 1 ? 'vote' : 'votes'} ({percentage}%)
+                    </span>
+                  </div>
+                  {/* Progress Bar Container */}
+                  <div style={{ width: '100%', height: '10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '5px', overflow: 'hidden' }}>
+                    <div style={{ 
+                      width: `${percentage}%`, 
+                      height: '100%', 
+                      background: color, 
+                      borderRadius: '5px',
+                      boxShadow: `0 0 8px ${color}80`,
+                      transition: 'width 0.6s cubic-bezier(0.1, 0.8, 0.2, 1)'
+                    }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Bar Chart */}
-        <div className="glass-panel" style={{ padding: '30px' }}>
-          <h3 style={{ marginBottom: '20px', fontFamily: 'Outfit', textAlign: 'center' }}>Overall Network Score</h3>
-          <div style={{ height: '400px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} layout="vertical" margin={{ top: 20, right: 30, left: 40, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" horizontal={false} />
-                <XAxis type="number" stroke="var(--text-secondary)" domain={[0, 100]} />
-                <YAxis dataKey="name" type="category" stroke="var(--text-secondary)" />
-                <Tooltip contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '8px' }} />
-                <Bar dataKey="score" fill="var(--accent-purple)" radius={[0, 4, 4, 0]}>
-                  {
-                    barData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === 0 ? 'var(--neon-cyan)' : 'var(--neon-pink)'} />
-                    ))
-                  }
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+        {/* Donut Chart Visualization */}
+        <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <h3 style={{ marginBottom: '20px', fontFamily: 'Outfit' }}>Consensus Share</h3>
+          
+          {hasVotes ? (
+            <div style={{ width: '100%', height: '240px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    innerRadius={60}
+                    outerRadius={85}
+                    paddingAngle={4}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {pieData.map((entry, index) => {
+                      // Resolve original color index based on matches
+                      const origIndex = decision.options.findIndex(o => o.optionTitle === entry.name);
+                      return (
+                        <Cell key={`cell-${index}`} fill={CHART_COLORS[origIndex % CHART_COLORS.length]} />
+                      );
+                    })}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '8px' }} />
+                  <Legend verticalAlign="bottom" height={36} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div style={{ height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+              <p>Donut chart will display once votes are received.</p>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="glass-panel" style={{ padding: '30px', textAlign: 'center', background: 'rgba(0, 245, 255, 0.05)', border: '1px solid rgba(0, 245, 255, 0.2)' }}>
-        <h2 style={{ color: 'var(--neon-cyan)', marginBottom: '10px' }}>Final Recommendation: Option A</h2>
-        <p style={{ color: 'var(--text-secondary)' }}>Based on the current matrix weighting and network votes, <strong>Pursue MBA</strong> holds a 13% advantage over entering the workforce immediately.</p>
+      {/* Dynamic Option Comparison Matrix Table (Simple Text comparison) */}
+      <div className="glass-panel" style={{ padding: '30px' }}>
+        <h3 style={{ marginBottom: '24px', fontFamily: 'Outfit' }}>Qualitative Side-by-Side Comparison</h3>
+        
+        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '20px' }}>
+          {decision.options.map((opt, idx) => (
+            <div key={opt.id} style={{ flex: 1, minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '16px', borderRight: idx === decision.options.length - 1 ? 'none' : '1px solid var(--glass-border)', paddingRight: '20px' }}>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)' }}>{opt.optionTitle}</h4>
+                {opt.description && (
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '6px', lineHeight: '1.4' }}>{opt.description}</p>
+                )}
+              </div>
+              
+              {/* Pros */}
+              <div>
+                <div style={{ color: 'var(--success)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '6px' }}>Pros</div>
+                {opt.pros ? (
+                  <ul style={{ paddingLeft: '16px', margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                    {opt.pros.split(',').map((pro, pIdx) => (
+                      <li key={pIdx}>{pro.trim()}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic', margin: 0 }}>None mentioned</p>
+                )}
+              </div>
+
+              {/* Cons */}
+              <div>
+                <div style={{ color: 'var(--neon-pink)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '6px' }}>Cons</div>
+                {opt.cons ? (
+                  <ul style={{ paddingLeft: '16px', margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                    {opt.cons.split(',').map((con, cIdx) => (
+                      <li key={cIdx}>{con.trim()}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic', margin: 0 }}>None mentioned</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
     </div>
