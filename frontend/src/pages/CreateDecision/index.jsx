@@ -14,9 +14,11 @@ const CreateDecision = () => {
   const [category, setCategory] = useState('Technology');
   const [communityId, setCommunityId] = useState(paramCommunityId || '');
   const [myCommunities, setMyCommunities] = useState([]);
+  const [criteria, setCriteria] = useState(['Price', 'Performance', 'Battery', 'Weight', 'Warranty']);
+  const [newCriterion, setNewCriterion] = useState('');
   const [options, setOptions] = useState([
-    { optionTitle: '', description: '', pros: '', cons: '' },
-    { optionTitle: '', description: '', pros: '', cons: '' }
+    { optionTitle: '', description: '', pros: '', cons: '', values: {} },
+    { optionTitle: '', description: '', pros: '', cons: '', values: {} }
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -49,8 +51,17 @@ const CreateDecision = () => {
     setOptions(newOptions);
   };
 
+  const handleOptionValueChange = (index, criterion, value) => {
+    const newOptions = [...options];
+    if (!newOptions[index].values) {
+      newOptions[index].values = {};
+    }
+    newOptions[index].values[criterion] = value;
+    setOptions(newOptions);
+  };
+
   const addOption = () => {
-    setOptions([...options, { optionTitle: '', description: '', pros: '', cons: '' }]);
+    setOptions([...options, { optionTitle: '', description: '', pros: '', cons: '', values: {} }]);
   };
 
   const removeOption = (index) => {
@@ -59,6 +70,22 @@ const CreateDecision = () => {
     } else {
       alert("You must have at least two options.");
     }
+  };
+
+  const addCriterion = () => {
+    if (newCriterion.trim() && !criteria.includes(newCriterion.trim())) {
+      setCriteria([...criteria, newCriterion.trim()]);
+      setNewCriterion('');
+    }
+  };
+
+  const removeCriterion = (critToRemove) => {
+    setCriteria(criteria.filter(c => c !== critToRemove));
+    setOptions(options.map(opt => {
+      const nextValues = { ...opt.values };
+      delete nextValues[critToRemove];
+      return { ...opt, values: nextValues };
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -88,6 +115,15 @@ const CreateDecision = () => {
       const res = await api.post('/api/decisions', payload);
 
       if (res.data?.success) {
+        const createdDecisionId = res.data.data.id;
+        localStorage.setItem(`decision_criteria_${createdDecisionId}`, JSON.stringify(criteria));
+        localStorage.setItem(`decision_option_values_${createdDecisionId}`, JSON.stringify(
+          options.map(opt => ({
+            optionTitle: opt.optionTitle,
+            values: opt.values
+          }))
+        ));
+
         alert("Decision initialized successfully!");
         navigate('/decision-board');
       }
@@ -319,6 +355,59 @@ const CreateDecision = () => {
           />
         </div>
 
+        {/* Comparison Criteria */}
+        <div style={{ marginTop: '10px', padding: '24px', borderRadius: '16px', border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.01)' }}>
+          <h3 style={{ margin: 0, fontFamily: 'Outfit', color: 'var(--text-primary)', fontSize: '1.25rem', marginBottom: '8px' }}>Comparison Criteria</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '16px', lineHeight: '1.4' }}>
+            Define comparison aspects (e.g. Price, Performance, Battery life). This generates matching input fields inside each option card for side-by-side comparison tables.
+          </p>
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+            <input 
+              type="text" 
+              placeholder="e.g. Warranty" 
+              value={newCriterion} 
+              onChange={(e) => setNewCriterion(e.target.value)} 
+              className="input-premium" 
+              style={{ flex: 1 }}
+            />
+            <button 
+              type="button" 
+              onClick={addCriterion} 
+              className="btn-secondary" 
+              style={{ padding: '0 20px', borderRadius: '8px' }}
+            >
+              Add Criterion
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {criteria.map(crit => (
+              <span 
+                key={crit} 
+                style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  background: 'rgba(0, 245, 255, 0.08)', 
+                  border: '1px solid rgba(0, 245, 255, 0.15)', 
+                  color: 'var(--neon-cyan)', 
+                  padding: '6px 12px', 
+                  borderRadius: '20px', 
+                  fontSize: '0.85rem' 
+                }}
+              >
+                {crit}
+                <button 
+                  type="button" 
+                  onClick={() => removeCriterion(crit)} 
+                  style={{ background: 'transparent', border: 'none', color: 'var(--neon-pink)', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}
+                >
+                  &times;
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+
         {/* Options Section */}
         <div style={{ marginTop: '10px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -394,6 +483,37 @@ const CreateDecision = () => {
                       />
                     </div>
                   </div>
+
+                  {/* Criteria Values Inputs */}
+                  {criteria.length > 0 && (
+                    <div style={{ 
+                      marginTop: '8px', 
+                      padding: '16px', 
+                      borderRadius: '8px', 
+                      background: 'rgba(255,255,255,0.01)', 
+                      border: '1px solid var(--glass-border)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px'
+                    }}>
+                      <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--neon-cyan)', fontFamily: 'Outfit' }}>Criteria Specifications</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                        {criteria.map(crit => (
+                          <div key={crit} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{crit}</label>
+                            <input 
+                              type="text" 
+                              placeholder={`Value for ${crit}`}
+                              value={option.values?.[crit] || ''}
+                              onChange={(e) => handleOptionValueChange(index, crit, e.target.value)}
+                              className="input-premium"
+                              style={{ height: '36px', padding: '6px 12px', fontSize: '0.85rem' }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

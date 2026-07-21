@@ -16,7 +16,40 @@ const ComparisonPage = () => {
       try {
         const res = await api.get(`/api/decisions/${id}`);
         if (res.data?.success) {
-          setDecision(res.data.data);
+          const fetchedDecision = res.data.data;
+          
+          // Attempt to retrieve criteria and values from localStorage
+          const storedCriteria = localStorage.getItem(`decision_criteria_${id}`);
+          const storedOptionValues = localStorage.getItem(`decision_option_values_${id}`);
+          
+          if (storedCriteria && storedOptionValues) {
+            fetchedDecision.criteria = JSON.parse(storedCriteria);
+            const parsedOptionValues = JSON.parse(storedOptionValues);
+            
+            fetchedDecision.options = fetchedDecision.options.map(opt => {
+              const match = parsedOptionValues.find(o => o.optionTitle === opt.optionTitle);
+              return {
+                ...opt,
+                values: match ? match.values : {}
+              };
+            });
+          } else {
+            // Fallback mock comparison data for demonstration (e.g. Laptop A vs Laptop B)
+            fetchedDecision.criteria = ['Price', 'Performance', 'Battery', 'Weight', 'Warranty'];
+            fetchedDecision.options = fetchedDecision.options.map((opt, idx) => {
+              const mockValues = idx === 0 ? {
+                'Price': '₹60,000', 'Performance': '⭐⭐⭐⭐', 'Battery': '8 hrs', 'Weight': '1.6 kg', 'Warranty': '1 Year'
+              } : {
+                'Price': '₹65,000', 'Performance': '⭐⭐⭐⭐⭐', 'Battery': '10 hrs', 'Weight': '1.4 kg', 'Warranty': '2 Years'
+              };
+              return {
+                ...opt,
+                values: opt.values || mockValues
+              };
+            });
+          }
+          
+          setDecision(fetchedDecision);
         }
       } catch (err) {
         console.error("Failed to fetch decision for comparison:", err);
@@ -193,6 +226,39 @@ const ComparisonPage = () => {
           )}
         </div>
       </div>
+
+      {/* Comparison Matrix Table */}
+      {decision.criteria && decision.criteria.length > 0 && (
+        <div className="glass-panel" style={{ padding: '30px', marginBottom: '40px' }}>
+          <h3 style={{ marginBottom: '24px', fontFamily: 'Outfit' }}>Comparison Matrix</h3>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--text-primary)' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--glass-border)' }}>
+                  <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 'bold', fontSize: '1rem', color: 'var(--neon-cyan)' }}>Criteria</th>
+                  {decision.options.map(opt => (
+                    <th key={opt.id} style={{ textAlign: 'center', padding: '12px 16px', fontWeight: 'bold', fontSize: '1rem' }}>
+                      {opt.optionTitle}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {decision.criteria.map((crit, cIdx) => (
+                  <tr key={crit} style={{ borderBottom: cIdx === decision.criteria.length - 1 ? 'none' : '1px solid var(--glass-border)', background: cIdx % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'transparent' }}>
+                    <td style={{ textAlign: 'left', padding: '16px', fontWeight: '500', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>{crit}</td>
+                    {decision.options.map(opt => (
+                      <td key={opt.id} style={{ textAlign: 'center', padding: '16px', fontSize: '0.95rem' }}>
+                        {opt.values?.[crit] || '-'}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Dynamic Option Comparison Matrix Table (Simple Text comparison) */}
       <div className="glass-panel" style={{ padding: '30px' }}>

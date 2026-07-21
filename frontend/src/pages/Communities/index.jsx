@@ -50,23 +50,45 @@ const Communities = () => {
         );
 
         if (commsRes.data?.success) {
-          // Sync local storage joined list
           const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${user?.id}`) || "[]");
-          const updatedJoinedList = [...joinedList];
-          accessedCommunityIds.forEach(id => {
-            if (!updatedJoinedList.includes(id)) {
-              updatedJoinedList.push(id);
-            }
-          });
-          if (user) {
-            localStorage.setItem(`joined_comm_${user.id}`, JSON.stringify(updatedJoinedList));
-          }
+          let updatedJoinedList = [...joinedList];
 
           const list = commsRes.data.data.map(c => {
             const styleInfo = CATEGORY_STYLES[c.category] || DEFAULT_STYLE;
             const isModerator = user && c.moderatorUsername === user.username;
-            const isJoined = isModerator || updatedJoinedList.includes(c.id) || accessedCommunityIds.has(c.id);
-            const isPending = !isJoined && user && localStorage.getItem(`pending_comm_${user.id}_${c.id}`) === "true";
+
+            // Check if backend explicitly provides membership status (isJoined, joined, isMember)
+            const backendJoined = c.isJoined !== undefined ? c.isJoined : (c.joined !== undefined ? c.joined : c.isMember);
+            
+            let isJoined = false;
+            if (backendJoined !== undefined) {
+              isJoined = backendJoined;
+              // Sync localStorage with the backend source of truth
+              if (isJoined) {
+                if (!updatedJoinedList.includes(c.id)) {
+                  updatedJoinedList.push(c.id);
+                }
+              } else {
+                updatedJoinedList = updatedJoinedList.filter(id => id !== c.id);
+              }
+            } else {
+              // Fallback to localStorage if backend doesn't provide it yet
+              isJoined = isModerator || updatedJoinedList.includes(c.id) || accessedCommunityIds.has(c.id);
+            }
+
+            // Check if backend provides pending status (isPending, pending)
+            const backendPending = c.isPending !== undefined ? c.isPending : c.pending;
+            let isPending = false;
+            if (backendPending !== undefined) {
+              isPending = backendPending;
+              if (isPending) {
+                localStorage.setItem(`pending_comm_${user?.id}_${c.id}`, "true");
+              } else {
+                localStorage.removeItem(`pending_comm_${user?.id}_${c.id}`);
+              }
+            } else {
+              isPending = !isJoined && user && localStorage.getItem(`pending_comm_${user.id}_${c.id}`) === "true";
+            }
 
             return {
               ...c,
@@ -77,6 +99,10 @@ const Communities = () => {
               isPending: isPending
             };
           });
+
+          if (user) {
+            localStorage.setItem(`joined_comm_${user.id}`, JSON.stringify(updatedJoinedList));
+          }
           setCommunities(list);
         }
       } catch (err) {

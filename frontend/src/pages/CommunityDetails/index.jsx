@@ -47,22 +47,55 @@ const CommunityDetails = () => {
           const commDecisions = allDecisions.filter(d => d.communityId === parseInt(id));
 
           const isMod = user?.username === comm.moderatorUsername;
-          const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${user?.id}`) || "[]");
+          let joinedList = JSON.parse(localStorage.getItem(`joined_comm_${user?.id}`) || "[]");
           const hasDecisionsAccess = commDecisions.length > 0;
-          
-          let joined = isMod || joinedList.includes(parseInt(id)) || hasDecisionsAccess;
-          let pending = false;
 
-          // If not joined, check if we have a pending request tracker
-          if (!joined && user) {
-            const wasPending = localStorage.getItem(`pending_comm_${user.id}_${id}`) === "true";
-            if (wasPending) {
+          // Check if backend explicitly provides membership status
+          const backendJoined = comm.isJoined !== undefined ? comm.isJoined : (comm.joined !== undefined ? comm.joined : comm.isMember);
+          
+          let joined = false;
+          if (backendJoined !== undefined) {
+            joined = backendJoined;
+            // Sync localStorage with backend
+            if (joined) {
+              if (!joinedList.includes(parseInt(id))) {
+                joinedList.push(parseInt(id));
+              }
+            } else {
+              joinedList = joinedList.filter(x => x !== parseInt(id));
+            }
+            if (user) {
+              localStorage.setItem(`joined_comm_${user.id}`, JSON.stringify(joinedList));
+            }
+          } else {
+            joined = isMod || joinedList.includes(parseInt(id)) || hasDecisionsAccess;
+          }
+
+          // Check if backend provides pending status
+          const backendPending = comm.isPending !== undefined ? comm.isPending : comm.pending;
+          let pending = false;
+          if (backendPending !== undefined) {
+            pending = backendPending;
+            if (pending) {
+              localStorage.setItem(`pending_comm_${user?.id}_${id}`, "true");
+            } else {
+              localStorage.removeItem(`pending_comm_${user?.id}_${id}`);
+            }
+          } else {
+            pending = !joined && user && localStorage.getItem(`pending_comm_${user.id}_${id}`) === "true";
+            // If not joined and has pending tracker, ping to check
+            if (!joined && user && pending) {
               try {
                 const pingRes = await api.post(`/api/communities/${id}/join`);
                 const detail = pingRes.data?.data || "";
                 if (detail.toLowerCase().includes("joined")) {
                   joined = true;
                   localStorage.removeItem(`pending_comm_${user.id}_${id}`);
+                  // Add to localStorage
+                  if (!joinedList.includes(parseInt(id))) {
+                    joinedList.push(parseInt(id));
+                    localStorage.setItem(`joined_comm_${user.id}`, JSON.stringify(joinedList));
+                  }
                 } else {
                   pending = true;
                 }
@@ -71,6 +104,10 @@ const CommunityDetails = () => {
                 if (errMsg.toLowerCase().includes("already a member")) {
                   joined = true;
                   localStorage.removeItem(`pending_comm_${user.id}_${id}`);
+                  if (!joinedList.includes(parseInt(id))) {
+                    joinedList.push(parseInt(id));
+                    localStorage.setItem(`joined_comm_${user.id}`, JSON.stringify(joinedList));
+                  }
                 } else if (errMsg.toLowerCase().includes("pending join request")) {
                   pending = true;
                 }
@@ -83,9 +120,8 @@ const CommunityDetails = () => {
 
           if (joined) {
             setDecisions(commDecisions);
-            if (!joinedList.includes(parseInt(id))) {
-              localStorage.setItem(`joined_comm_${user?.id}`, JSON.stringify([...joinedList, parseInt(id)]));
-            }
+          } else {
+            setDecisions([]);
           }
         }
       } catch (err) {
