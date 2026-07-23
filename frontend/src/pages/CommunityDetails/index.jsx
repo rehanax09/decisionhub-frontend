@@ -30,10 +30,11 @@ const CommunityDetails = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [userRes, commRes, decRes] = await Promise.all([
+        const [userRes, commRes, decRes, membershipRes] = await Promise.all([
           api.get('/api/users/me'),
           api.get(`/api/communities/${id}`),
-          api.get('/api/decisions').catch(() => ({ data: { success: false, data: [] } }))
+          api.get('/api/decisions').catch(() => ({ data: { success: false, data: [] } })),
+          api.get(`/api/communities/${id}/membership`).catch(() => ({ data: { success: false, data: null } }))
         ]);
 
         const user = userRes.data?.data;
@@ -46,77 +47,23 @@ const CommunityDetails = () => {
           const allDecisions = decRes.data?.success ? decRes.data.data : [];
           const commDecisions = allDecisions.filter(d => d.communityId === parseInt(id));
 
-          const isMod = user?.username === comm.moderatorUsername;
-          let joinedList = JSON.parse(localStorage.getItem(`joined_comm_${user?.id}`) || "[]");
-          const hasDecisionsAccess = commDecisions.length > 0;
-
-          // Check if backend explicitly provides membership status
-          const backendJoined = comm.isJoined !== undefined ? comm.isJoined : (comm.joined !== undefined ? comm.joined : comm.isMember);
-          
+          const status = membershipRes.data?.data;
           let joined = false;
-          if (backendJoined !== undefined) {
-            joined = backendJoined;
-            // Sync localStorage with backend
-            if (joined) {
-              if (!joinedList.includes(parseInt(id))) {
-                joinedList.push(parseInt(id));
-              }
-            } else {
-              joinedList = joinedList.filter(x => x !== parseInt(id));
-            }
-            if (user) {
-              localStorage.setItem(`joined_comm_${user.id}`, JSON.stringify(joinedList));
-            }
-          } else {
-            joined = isMod || joinedList.includes(parseInt(id)) || hasDecisionsAccess;
-          }
-
-          // Check if backend provides pending status
-          const backendPending = comm.isPending !== undefined ? comm.isPending : comm.pending;
           let pending = false;
-          if (backendPending !== undefined) {
-            pending = backendPending;
-            if (pending) {
-              localStorage.setItem(`pending_comm_${user?.id}_${id}`, "true");
-            } else {
-              localStorage.removeItem(`pending_comm_${user?.id}_${id}`);
-            }
+
+          if (status) {
+            const isMember = status.member !== undefined ? status.member : status.isMember;
+            const isPending = status.pending !== undefined ? status.pending : status.isPending;
+            const isModerator = status.moderator !== undefined ? status.moderator : status.isModerator;
+            joined = isMember || isModerator;
+            pending = isPending;
           } else {
-            pending = !joined && user && localStorage.getItem(`pending_comm_${user.id}_${id}`) === "true";
-            // If not joined and has pending tracker, ping to check
-            if (!joined && user && pending) {
-              try {
-                const pingRes = await api.post(`/api/communities/${id}/join`);
-                const detail = pingRes.data?.data || "";
-                if (detail.toLowerCase().includes("joined")) {
-                  joined = true;
-                  localStorage.removeItem(`pending_comm_${user.id}_${id}`);
-                  // Add to localStorage
-                  if (!joinedList.includes(parseInt(id))) {
-                    joinedList.push(parseInt(id));
-                    localStorage.setItem(`joined_comm_${user.id}`, JSON.stringify(joinedList));
-                  }
-                } else {
-                  pending = true;
-                }
-              } catch (pingErr) {
-                const errMsg = pingErr.response?.data?.message || "";
-                if (errMsg.toLowerCase().includes("already a member")) {
-                  joined = true;
-                  localStorage.removeItem(`pending_comm_${user.id}_${id}`);
-                  if (!joinedList.includes(parseInt(id))) {
-                    joinedList.push(parseInt(id));
-                    localStorage.setItem(`joined_comm_${user.id}`, JSON.stringify(joinedList));
-                  }
-                } else if (errMsg.toLowerCase().includes("pending join request")) {
-                  pending = true;
-                }
-              }
-            }
+            const isMod = user?.username === comm.moderatorUsername;
+            joined = isMod;
           }
 
-          setIsJoined(joined);
-          setIsPending(pending);
+          setIsJoined(!!joined);
+          setIsPending(!!pending);
 
           if (joined) {
             setDecisions(commDecisions);
@@ -143,9 +90,6 @@ const CommunityDetails = () => {
         setIsJoined(false);
         setIsPending(false);
         setCommunity(prev => ({ ...prev, memberCount: Math.max(0, prev.memberCount - 1) }));
-        const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${currentUser.id}`) || "[]");
-        localStorage.setItem(`joined_comm_${currentUser.id}`, JSON.stringify(joinedList.filter(x => x !== parseInt(id))));
-        localStorage.removeItem(`pending_comm_${currentUser.id}_${id}`);
         setDecisions([]); // Hide decisions
       } else {
         // Request Join
@@ -158,10 +102,6 @@ const CommunityDetails = () => {
           setIsJoined(true);
           setIsPending(false);
           setCommunity(prev => ({ ...prev, memberCount: prev.memberCount + 1 }));
-          const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${currentUser.id}`) || "[]");
-          if (!joinedList.includes(parseInt(id))) {
-            localStorage.setItem(`joined_comm_${currentUser.id}`, JSON.stringify([...joinedList, parseInt(id)]));
-          }
           // Fetch decisions now that they are joined
           const decRes = await api.get('/api/decisions');
           if (decRes.data?.success) {
@@ -171,7 +111,6 @@ const CommunityDetails = () => {
         } else {
           alert(detail || msg);
           setIsPending(true);
-          localStorage.setItem(`pending_comm_${currentUser.id}_${id}`, "true");
         }
       }
     } catch (err) {
@@ -181,11 +120,6 @@ const CommunityDetails = () => {
         alert("You are already a member of this community!");
         setIsJoined(true);
         setIsPending(false);
-        localStorage.removeItem(`pending_comm_${currentUser.id}_${id}`);
-        const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${currentUser.id}`) || "[]");
-        if (!joinedList.includes(parseInt(id))) {
-          localStorage.setItem(`joined_comm_${currentUser.id}`, JSON.stringify([...joinedList, parseInt(id)]));
-        }
         // Fetch decisions now that they are joined
         const decRes = await api.get('/api/decisions');
         if (decRes.data?.success) {
@@ -195,7 +129,6 @@ const CommunityDetails = () => {
       } else if (errMsg.toLowerCase().includes("pending join request")) {
         alert("Your join request is already pending moderator approval!");
         setIsPending(true);
-        localStorage.setItem(`pending_comm_${currentUser.id}_${id}`, "true");
       } else {
         alert(errMsg || "An error occurred.");
       }
@@ -572,8 +505,10 @@ const CommunityDetails = () => {
                  {members.map(member => (
                    <div key={member.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'var(--panel-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
                      <div>
-                       <div style={{ fontWeight: 'bold' }}>{member.fullName || 'N/A'}</div>
-                       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>@{member.username}</div>
+                       <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>@{member.username}</div>
+                       <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                         {member.email || 'No email provided'}
+                       </div>
                      </div>
                      {member.username !== community.moderatorUsername ? (
                        <button 

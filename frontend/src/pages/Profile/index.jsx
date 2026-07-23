@@ -13,18 +13,39 @@ const Profile = () => {
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        const userRes = await api.get('/api/users/me');
-        if (userRes.data?.success) {
+        const [userRes, commsRes, decisionsRes] = await Promise.all([
+          api.get('/api/users/me'),
+          api.get('/api/communities').catch(() => null),
+          api.get('/api/decisions').catch(() => null)
+        ]);
+
+        if (userRes && userRes.data?.success) {
           const userObj = userRes.data.data;
           setCurrentUser(userObj);
           
-          // Get joined communities count from localStorage tracking list
-          const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${userObj.id}`) || "[]");
-          setJoinedCommunitiesCount(joinedList.length);
+          if (commsRes && commsRes.data?.success) {
+            const list = commsRes.data.data;
+            const membershipStatuses = await Promise.all(
+              list.map(c => 
+                api.get(`/api/communities/${c.id}/membership`)
+                  .then(res => res.data?.data)
+                  .catch(() => null)
+              )
+            );
+            const joinedCount = list.filter((c, idx) => {
+              const isModerator = c.moderatorUsername === userObj.username;
+              const status = membershipStatuses[idx];
+              if (status) {
+                const isMember = status.member !== undefined ? status.member : status.isMember;
+                const isModeratorVal = status.moderator !== undefined ? status.moderator : status.isModerator;
+                return isMember || isModeratorVal;
+              }
+              return isModerator;
+            }).length;
+            setJoinedCommunitiesCount(joinedCount);
+          }
           
-          // Fetch decisions and filter by current user
-          const decisionsRes = await api.get('/api/decisions');
-          if (decisionsRes.data?.success) {
+          if (decisionsRes && decisionsRes.data?.success) {
             const allDecisions = decisionsRes.data.data;
             const filtered = allDecisions.filter(d => d.userId === userObj.id);
             setMyDecisions(filtered);

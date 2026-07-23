@@ -5,6 +5,19 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ChartTooltip, Lege
 import api from '../../api/api';
 const mergeCriteriaAndValues = (fetchedDecision) => {
   if (!fetchedDecision) return fetchedDecision;
+
+  // Automatically clear old dummy criteria from local storage if they exist
+  const storedCriteriaRaw = localStorage.getItem(`decision_criteria_${fetchedDecision.id}`);
+  if (storedCriteriaRaw) {
+    try {
+      const parsed = JSON.parse(storedCriteriaRaw);
+      if (Array.isArray(parsed) && parsed.includes("Price") && parsed.includes("Performance")) {
+        localStorage.removeItem(`decision_criteria_${fetchedDecision.id}`);
+        localStorage.removeItem(`decision_option_values_${fetchedDecision.id}`);
+      }
+    } catch (e) {}
+  }
+  
   const storedCriteria = localStorage.getItem(`decision_criteria_${fetchedDecision.id}`);
   const storedOptionValues = localStorage.getItem(`decision_option_values_${fetchedDecision.id}`);
   
@@ -20,17 +33,11 @@ const mergeCriteriaAndValues = (fetchedDecision) => {
       };
     });
   } else {
-    // Fallback mock comparison data for demonstration (e.g. Laptop A vs Laptop B)
-    fetchedDecision.criteria = ['Price', 'Performance', 'Battery', 'Weight', 'Warranty'];
-    fetchedDecision.options = fetchedDecision.options.map((opt, idx) => {
-      const mockValues = idx === 0 ? {
-        'Price': '₹60,000', 'Performance': '⭐⭐⭐⭐', 'Battery': '8 hrs', 'Weight': '1.6 kg', 'Warranty': '1 Year'
-      } : {
-        'Price': '₹65,000', 'Performance': '⭐⭐⭐⭐⭐', 'Battery': '10 hrs', 'Weight': '1.4 kg', 'Warranty': '2 Years'
-      };
+    fetchedDecision.criteria = [];
+    fetchedDecision.options = fetchedDecision.options.map(opt => {
       return {
         ...opt,
-        values: opt.values || mockValues
+        values: {}
       };
     });
   }
@@ -372,6 +379,39 @@ const DecisionDetails = () => {
             </p>
           </div>
 
+          {/* Comparison Matrix Table */}
+          {decision.criteria && decision.criteria.length > 0 && (
+            <div className="glass-panel" style={{ padding: '30px', borderRadius: 'var(--radius-lg)' }}>
+              <h3 style={{ marginBottom: '24px', fontFamily: 'Outfit' }}>Comparison Matrix</h3>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--text-primary)' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--glass-border)' }}>
+                      <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 'bold', fontSize: '1rem', color: 'var(--neon-cyan)' }}>Criteria</th>
+                      {decision.options.map(opt => (
+                        <th key={opt.id} style={{ textAlign: 'center', padding: '12px 16px', fontWeight: 'bold', fontSize: '1rem' }}>
+                          {opt.optionTitle}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {decision.criteria.map((crit, cIdx) => (
+                      <tr key={crit} style={{ borderBottom: cIdx === decision.criteria.length - 1 ? 'none' : '1px solid var(--glass-border)', background: cIdx % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'transparent' }}>
+                        <td style={{ textAlign: 'left', padding: '16px', fontWeight: '500', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>{crit}</td>
+                        {decision.options.map(opt => (
+                          <td key={opt.id} style={{ textAlign: 'center', padding: '16px', fontSize: '0.95rem' }}>
+                            {opt.values?.[crit] || '-'}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Options & Voting */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <h3 style={{ fontFamily: 'Outfit', margin: 0, color: 'var(--text-primary)' }}>Available Options</h3>
@@ -620,39 +660,6 @@ const DecisionDetails = () => {
               })()}
             </div>
           </div>
-
-          {/* Comparison Matrix Table */}
-          {decision.criteria && decision.criteria.length > 0 && (
-            <div className="glass-panel" style={{ padding: '30px', borderRadius: 'var(--radius-lg)' }}>
-              <h3 style={{ marginBottom: '24px', fontFamily: 'Outfit' }}>Comparison Matrix</h3>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--text-primary)' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid var(--glass-border)' }}>
-                      <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 'bold', fontSize: '1rem', color: 'var(--neon-cyan)' }}>Criteria</th>
-                      {decision.options.map(opt => (
-                        <th key={opt.id} style={{ textAlign: 'center', padding: '12px 16px', fontWeight: 'bold', fontSize: '1rem' }}>
-                          {opt.optionTitle}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {decision.criteria.map((crit, cIdx) => (
-                      <tr key={crit} style={{ borderBottom: cIdx === decision.criteria.length - 1 ? 'none' : '1px solid var(--glass-border)', background: cIdx % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'transparent' }}>
-                        <td style={{ textAlign: 'left', padding: '16px', fontWeight: '500', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>{crit}</td>
-                        {decision.options.map(opt => (
-                          <td key={opt.id} style={{ textAlign: 'center', padding: '16px', fontSize: '0.95rem' }}>
-                            {opt.values?.[crit] || '-'}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
 
           {/* Qualitative Side-by-Side Comparison */}
           <div className="glass-panel" style={{ padding: '30px', borderRadius: 'var(--radius-lg)' }}>

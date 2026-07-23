@@ -22,15 +22,40 @@ const Dashboard = () => {
   React.useEffect(() => {
     const loadDashboardData = async () => {
       try {
-        const userRes = await api.get('/api/users/me');
-        if (userRes.data?.success) {
-          const userObj = userRes.data.data;
-          const list = JSON.parse(localStorage.getItem(`joined_comm_${userObj.id}`) || "[]");
-          setJoinedCommunitiesCount(list.length);
+        const [userRes, commsRes, decisionsRes] = await Promise.all([
+          api.get('/api/users/me'),
+          api.get('/api/communities').catch(() => null),
+          api.get('/api/decisions').catch(() => null)
+        ]);
+
+        let userObj = null;
+        if (userRes && userRes.data?.success) {
+          userObj = userRes.data.data;
         }
 
-        const decisionsRes = await api.get('/api/decisions');
-        if (decisionsRes.data?.success) {
+        if (userObj && commsRes && commsRes.data?.success) {
+          const list = commsRes.data.data;
+          const membershipStatuses = await Promise.all(
+            list.map(c => 
+              api.get(`/api/communities/${c.id}/membership`)
+                .then(res => res.data?.data)
+                .catch(() => null)
+            )
+          );
+          const joinedCount = list.filter((c, idx) => {
+            const isModerator = c.moderatorUsername === userObj.username;
+            const status = membershipStatuses[idx];
+            if (status) {
+              const isMember = status.member !== undefined ? status.member : status.isMember;
+              const isModeratorVal = status.moderator !== undefined ? status.moderator : status.isModerator;
+              return isMember || isModeratorVal;
+            }
+            return isModerator;
+          }).length;
+          setJoinedCommunitiesCount(joinedCount);
+        }
+
+        if (decisionsRes && decisionsRes.data?.success) {
           setDecisionsCount(decisionsRes.data.data.length);
         }
       } catch (err) {

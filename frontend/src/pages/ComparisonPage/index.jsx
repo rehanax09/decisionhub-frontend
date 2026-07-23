@@ -18,6 +18,18 @@ const ComparisonPage = () => {
         if (res.data?.success) {
           const fetchedDecision = res.data.data;
           
+          // Automatically clear old dummy criteria from local storage if they exist
+          const storedCriteriaRaw = localStorage.getItem(`decision_criteria_${id}`);
+          if (storedCriteriaRaw) {
+            try {
+              const parsed = JSON.parse(storedCriteriaRaw);
+              if (Array.isArray(parsed) && parsed.includes("Price") && parsed.includes("Performance")) {
+                localStorage.removeItem(`decision_criteria_${id}`);
+                localStorage.removeItem(`decision_option_values_${id}`);
+              }
+            } catch (e) {}
+          }
+
           // Attempt to retrieve criteria and values from localStorage
           const storedCriteria = localStorage.getItem(`decision_criteria_${id}`);
           const storedOptionValues = localStorage.getItem(`decision_option_values_${id}`);
@@ -34,17 +46,11 @@ const ComparisonPage = () => {
               };
             });
           } else {
-            // Fallback mock comparison data for demonstration (e.g. Laptop A vs Laptop B)
-            fetchedDecision.criteria = ['Price', 'Performance', 'Battery', 'Weight', 'Warranty'];
-            fetchedDecision.options = fetchedDecision.options.map((opt, idx) => {
-              const mockValues = idx === 0 ? {
-                'Price': '₹60,000', 'Performance': '⭐⭐⭐⭐', 'Battery': '8 hrs', 'Weight': '1.6 kg', 'Warranty': '1 Year'
-              } : {
-                'Price': '₹65,000', 'Performance': '⭐⭐⭐⭐⭐', 'Battery': '10 hrs', 'Weight': '1.4 kg', 'Warranty': '2 Years'
-              };
+            fetchedDecision.criteria = [];
+            fetchedDecision.options = fetchedDecision.options.map(opt => {
               return {
                 ...opt,
-                values: opt.values || mockValues
+                values: {}
               };
             });
           }

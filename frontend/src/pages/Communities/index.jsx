@@ -50,44 +50,31 @@ const Communities = () => {
         );
 
         if (commsRes.data?.success) {
-          const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${user?.id}`) || "[]");
-          let updatedJoinedList = [...joinedList];
+          const list = commsRes.data.data;
+          
+          // Query membership status for all fetched communities in parallel
+          const membershipStatuses = await Promise.all(
+            list.map(c => 
+              api.get(`/api/communities/${c.id}/membership`)
+                .then(res => res.data?.data)
+                .catch(() => null)
+            )
+          );
 
-          const list = commsRes.data.data.map(c => {
+          const updatedList = list.map((c, idx) => {
             const styleInfo = CATEGORY_STYLES[c.category] || DEFAULT_STYLE;
             const isModerator = user && c.moderatorUsername === user.username;
 
-            // Check if backend explicitly provides membership status (isJoined, joined, isMember)
-            const backendJoined = c.isJoined !== undefined ? c.isJoined : (c.joined !== undefined ? c.joined : c.isMember);
-            
-            let isJoined = false;
-            if (backendJoined !== undefined) {
-              isJoined = backendJoined;
-              // Sync localStorage with the backend source of truth
-              if (isJoined) {
-                if (!updatedJoinedList.includes(c.id)) {
-                  updatedJoinedList.push(c.id);
-                }
-              } else {
-                updatedJoinedList = updatedJoinedList.filter(id => id !== c.id);
-              }
-            } else {
-              // Fallback to localStorage if backend doesn't provide it yet
-              isJoined = isModerator || updatedJoinedList.includes(c.id) || accessedCommunityIds.has(c.id);
-            }
-
-            // Check if backend provides pending status (isPending, pending)
-            const backendPending = c.isPending !== undefined ? c.isPending : c.pending;
+            const status = membershipStatuses[idx];
+            let isJoined = isModerator;
             let isPending = false;
-            if (backendPending !== undefined) {
-              isPending = backendPending;
-              if (isPending) {
-                localStorage.setItem(`pending_comm_${user?.id}_${c.id}`, "true");
-              } else {
-                localStorage.removeItem(`pending_comm_${user?.id}_${c.id}`);
-              }
-            } else {
-              isPending = !isJoined && user && localStorage.getItem(`pending_comm_${user.id}_${c.id}`) === "true";
+
+            if (status) {
+              const isMember = status.member !== undefined ? status.member : status.isMember;
+              const isPendingVal = status.pending !== undefined ? status.pending : status.isPending;
+              const isModeratorVal = status.moderator !== undefined ? status.moderator : status.isModerator;
+              isJoined = isMember || isModeratorVal;
+              isPending = isPendingVal;
             }
 
             return {
@@ -95,15 +82,11 @@ const Communities = () => {
               color: styleInfo.color,
               icon: styleInfo.icon,
               badgeClass: styleInfo.badgeClass,
-              isJoined: isJoined,
-              isPending: isPending
+              isJoined: !!isJoined,
+              isPending: !!isPending
             };
           });
-
-          if (user) {
-            localStorage.setItem(`joined_comm_${user.id}`, JSON.stringify(updatedJoinedList));
-          }
-          setCommunities(list);
+          setCommunities(updatedList);
         }
       } catch (err) {
         console.error("Failed to load communities data:", err);
@@ -126,17 +109,12 @@ const Communities = () => {
           }
           return c;
         }));
-        
-        // Update local storage tracking
-        const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${currentUser.id}`) || "[]");
-        localStorage.setItem(`joined_comm_${currentUser.id}`, JSON.stringify(joinedList.filter(x => x !== id)));
       } else {
         // Join community
         const res = await api.post(`/api/communities/${id}/join`);
         const msg = res.data?.message || res.data?.data || "Join request sent.";
         alert(msg);
         
-        // If they joined instantly (e.g. Admin), we could update the UI, but it's simpler to just re-fetch or let them know.
         if (msg.toLowerCase().includes("joined")) {
            setCommunities(prev => prev.map(c => {
             if (c.id === id) {
@@ -144,12 +122,7 @@ const Communities = () => {
             }
             return c;
           }));
-          const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${currentUser.id}`) || "[]");
-          if (!joinedList.includes(id)) {
-            localStorage.setItem(`joined_comm_${currentUser.id}`, JSON.stringify([...joinedList, id]));
-          }
         } else {
-           localStorage.setItem(`pending_comm_${currentUser.id}_${id}`, "true");
            setCommunities(prev => prev.map(c => {
              if (c.id === id) {
                return { ...c, isPending: true };

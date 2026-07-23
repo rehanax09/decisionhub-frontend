@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Plus, Trash2, Globe, Users, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Globe, Users, ChevronDown, Cpu, DollarSign, Briefcase, Compass, Heart } from 'lucide-react';
 import api from '../../api/api';
+
+const categories = [
+  { value: 'Technology', label: 'Technology', icon: Cpu, badgeClass: 'badge-cyan', iconColor: 'var(--neon-cyan)' },
+  { value: 'Finance', label: 'Finance', icon: DollarSign, badgeClass: 'badge-success', iconColor: 'var(--success)' },
+  { value: 'Career', label: 'Career', icon: Briefcase, badgeClass: 'badge-purple', iconColor: 'var(--accent-purple)' },
+  { value: 'Travel', label: 'Travel', icon: Compass, badgeClass: 'badge-secondary', iconColor: 'var(--text-secondary)' },
+  { value: 'Lifestyle', label: 'Lifestyle', icon: Heart, badgeClass: 'badge-pink', iconColor: 'var(--neon-pink)' }
+];
 
 const CreateDecision = () => {
   const navigate = useNavigate();
@@ -14,7 +22,7 @@ const CreateDecision = () => {
   const [category, setCategory] = useState('Technology');
   const [communityId, setCommunityId] = useState(paramCommunityId || '');
   const [myCommunities, setMyCommunities] = useState([]);
-  const [criteria, setCriteria] = useState(['Price', 'Performance', 'Battery', 'Weight', 'Warranty']);
+  const [criteria, setCriteria] = useState([]);
   const [newCriterion, setNewCriterion] = useState('');
   const [options, setOptions] = useState([
     { optionTitle: '', description: '', pros: '', cons: '', values: {} },
@@ -22,6 +30,7 @@ const CreateDecision = () => {
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
 
   React.useEffect(() => {
     const fetchModeratorCommunities = async () => {
@@ -322,22 +331,117 @@ const CreateDecision = () => {
         )}
 
         {/* Category */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }}>
           <label style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: '600' }}>Category</label>
           <div style={{ position: 'relative' }}>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
+            {/* Dropdown Trigger */}
+            <button
+              type="button"
+              onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
               className="input-premium"
-              style={{ appearance: 'none' }}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+                textAlign: 'left',
+                height: '48px',
+                width: '100%',
+                background: 'rgba(0, 0, 0, 0.45)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 18px',
+                color: 'var(--text-primary)',
+                fontFamily: 'inherit',
+                transition: 'all 0.3s ease'
+              }}
             >
-                <option value="Technology" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Technology</option>
-                <option value="Finance" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Finance</option>
-                <option value="Career" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Career</option>
-                <option value="Travel" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Travel</option>
-                <option value="Lifestyle" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Lifestyle</option>
-            </select>
-            <div style={{ position: 'absolute', right: '16px', top: '18px', pointerEvents: 'none', width: '0', height: '0', borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--text-secondary)' }}></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {(() => {
+                  const selected = categories.find(c => c.value === category) || categories[0];
+                  const IconComponent = selected.icon;
+                  return (
+                    <>
+                      <IconComponent size={16} color={selected.iconColor} />
+                      <span>{selected.label}</span>
+                      <span className={`badge-premium ${selected.badgeClass}`} style={{ fontSize: '0.65rem', padding: '2px 8px', textTransform: 'uppercase' }}>
+                        {selected.label}
+                      </span>
+                    </>
+                  );
+                })()}
+              </div>
+              <ChevronDown size={18} style={{ transform: categoryDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', color: 'var(--text-secondary)' }} />
+            </button>
+
+            {/* Dropdown Menu */}
+            {categoryDropdownOpen && (
+              <>
+                {/* Click Overlay to close */}
+                <div 
+                  onClick={() => setCategoryDropdownOpen(false)} 
+                  style={{ position: 'fixed', inset: 0, zIndex: 998 }} 
+                />
+                
+                <div 
+                  className="glass-panel modal-animate" 
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    left: 0,
+                    width: '100%',
+                    zIndex: 999,
+                    background: 'rgba(15, 15, 15, 0.95)',
+                    border: '1px solid var(--glass-border)',
+                    borderRadius: 'var(--radius-md)',
+                    overflow: 'hidden',
+                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5), 0 0 1px rgba(0, 245, 255, 0.2)',
+                    padding: '6px'
+                  }}
+                >
+                  {categories.map(cat => {
+                    const isSelected = cat.value === category;
+                    const IconComponent = cat.icon;
+                    return (
+                      <div
+                        key={cat.value}
+                        onClick={() => {
+                          setCategory(cat.value);
+                          setCategoryDropdownOpen(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '12px 14px',
+                          borderRadius: 'var(--radius-sm)',
+                          cursor: 'pointer',
+                          background: isSelected ? 'rgba(0, 245, 255, 0.08)' : 'transparent',
+                          transition: 'all 0.2s ease',
+                          marginTop: '2px'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(0, 245, 255, 0.05)';
+                          e.currentTarget.style.transform = 'translateX(4px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = isSelected ? 'rgba(0, 245, 255, 0.08)' : 'transparent';
+                          e.currentTarget.style.transform = 'none';
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <IconComponent size={15} color={cat.iconColor} />
+                          <span style={{ fontSize: '0.92rem', color: isSelected ? 'var(--neon-cyan)' : 'var(--text-primary)' }}>{cat.label}</span>
+                        </div>
+                        <span className={`badge-premium ${cat.badgeClass}`} style={{ fontSize: '0.65rem', padding: '2px 8px' }}>
+                          {cat.value}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
