@@ -9,53 +9,21 @@ import api from '../../api/api';
 const ComparisonPage = () => {
   const { id } = useParams();
   const [decision, setDecision] = useState(null);
+  const [comparisonTable, setComparisonTable] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDecision = async () => {
+    const fetchDecisionData = async () => {
       try {
-        const res = await api.get(`/api/decisions/${id}`);
+        const [res, compRes] = await Promise.all([
+          api.get(`/api/decisions/${id}`),
+          api.get(`/api/decisions/${id}/comparison/table`).catch(() => null)
+        ]);
         if (res.data?.success) {
-          const fetchedDecision = res.data.data;
-          
-          // Automatically clear old dummy criteria from local storage if they exist
-          const storedCriteriaRaw = localStorage.getItem(`decision_criteria_${id}`);
-          if (storedCriteriaRaw) {
-            try {
-              const parsed = JSON.parse(storedCriteriaRaw);
-              if (Array.isArray(parsed) && parsed.includes("Price") && parsed.includes("Performance")) {
-                localStorage.removeItem(`decision_criteria_${id}`);
-                localStorage.removeItem(`decision_option_values_${id}`);
-              }
-            } catch (e) {}
-          }
-
-          // Attempt to retrieve criteria and values from localStorage
-          const storedCriteria = localStorage.getItem(`decision_criteria_${id}`);
-          const storedOptionValues = localStorage.getItem(`decision_option_values_${id}`);
-          
-          if (storedCriteria && storedOptionValues) {
-            fetchedDecision.criteria = JSON.parse(storedCriteria);
-            const parsedOptionValues = JSON.parse(storedOptionValues);
-            
-            fetchedDecision.options = fetchedDecision.options.map(opt => {
-              const match = parsedOptionValues.find(o => o.optionTitle === opt.optionTitle);
-              return {
-                ...opt,
-                values: match ? match.values : {}
-              };
-            });
-          } else {
-            fetchedDecision.criteria = [];
-            fetchedDecision.options = fetchedDecision.options.map(opt => {
-              return {
-                ...opt,
-                values: {}
-              };
-            });
-          }
-          
-          setDecision(fetchedDecision);
+          setDecision(res.data.data);
+        }
+        if (compRes && compRes.data?.success) {
+          setComparisonTable(compRes.data.data);
         }
       } catch (err) {
         console.error("Failed to fetch decision for comparison:", err);
@@ -63,7 +31,7 @@ const ComparisonPage = () => {
         setLoading(false);
       }
     };
-    fetchDecision();
+    fetchDecisionData();
   }, [id]);
 
   if (loading) {
@@ -234,48 +202,60 @@ const ComparisonPage = () => {
       </div>
 
       {/* Comparison Matrix Table */}
-      {decision.criteria && decision.criteria.length > 0 && (
-        <div className="glass-panel" style={{ padding: '30px', marginBottom: '40px' }}>
-          <h3 style={{ marginBottom: '24px', fontFamily: 'Outfit' }}>Comparison Matrix</h3>
+      <div className="glass-panel" style={{ padding: '30px', marginBottom: '40px' }}>
+        <h3 style={{ marginBottom: '24px', fontFamily: 'Outfit' }}>Comparison Matrix</h3>
+        {comparisonTable && comparisonTable.parameters && comparisonTable.parameters.length > 0 ? (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--text-primary)' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--glass-border)' }}>
-                  <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 'bold', fontSize: '1rem', color: 'var(--neon-cyan)' }}>Criteria</th>
-                  {decision.options.map(opt => (
-                    <th key={opt.id} style={{ textAlign: 'center', padding: '12px 16px', fontWeight: 'bold', fontSize: '1rem' }}>
-                      {opt.optionTitle}
+                  <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 'bold', fontSize: '1rem', color: 'var(--neon-cyan)' }}>Parameter</th>
+                  {(decision?.options || []).map(opt => (
+                    <th key={opt?.id || opt?.optionTitle} style={{ textAlign: 'center', padding: '12px 16px', fontWeight: 'bold', fontSize: '1rem' }}>
+                      {opt?.optionTitle || 'Option'}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {decision.criteria.map((crit, cIdx) => (
-                  <tr key={crit} style={{ borderBottom: cIdx === decision.criteria.length - 1 ? 'none' : '1px solid var(--glass-border)', background: cIdx % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'transparent' }}>
-                    <td style={{ textAlign: 'left', padding: '16px', fontWeight: '500', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>{crit}</td>
-                    {decision.options.map(opt => (
-                      <td key={opt.id} style={{ textAlign: 'center', padding: '16px', fontSize: '0.95rem' }}>
-                        {opt.values?.[crit] || '-'}
-                      </td>
-                    ))}
+                {(comparisonTable?.parameters || []).map((param, pIdx) => (
+                  <tr key={param?.id || pIdx} style={{ borderBottom: pIdx === (comparisonTable?.parameters?.length || 0) - 1 ? 'none' : '1px solid var(--glass-border)', background: pIdx % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'transparent' }}>
+                    <td style={{ textAlign: 'left', padding: '16px', fontWeight: '500', color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                      {param?.name || 'Parameter'} {param?.unit ? `(${param.unit})` : ''}
+                    </td>
+                    {(decision?.options || []).map(opt => {
+                      const compOpt = (comparisonTable?.options || []).find(o => o && (o.optionId === opt?.id || String(o.optionId) === String(opt?.id)));
+                      const valObj = compOpt?.parameterValuesMap?.[param?.id] || 
+                                     compOpt?.parameterValuesMap?.[String(param?.id)] || 
+                                     (compOpt?.parameterValuesList || []).find(v => v && (v.parameterId === param?.id || String(v.parameterId) === String(param?.id)));
+                      return (
+                        <td key={opt?.id || opt?.optionTitle} style={{ textAlign: 'center', padding: '16px', fontSize: '0.95rem' }}>
+                          {valObj?.stringValue || valObj?.numericValue || '-'}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        ) : (
+          <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--glass-border)' }}>
+            <p style={{ margin: 0, fontSize: '1rem' }}>No parameters mentioned</p>
+          </div>
+        )}
+      </div>
 
       {/* Dynamic Option Comparison Matrix Table (Simple Text comparison) */}
       <div className="glass-panel" style={{ padding: '30px' }}>
         <h3 style={{ marginBottom: '24px', fontFamily: 'Outfit' }}>Qualitative Side-by-Side Comparison</h3>
         
         <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '20px' }}>
-          {decision.options.map((opt, idx) => (
-            <div key={opt.id} style={{ flex: 1, minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '16px', borderRight: idx === decision.options.length - 1 ? 'none' : '1px solid var(--glass-border)', paddingRight: '20px' }}>
+          {(decision?.options || []).map((opt, idx) => (
+            <div key={opt?.id || idx} style={{ flex: 1, minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '16px', borderRight: idx === (decision?.options?.length || 0) - 1 ? 'none' : '1px solid var(--glass-border)', paddingRight: '20px' }}>
               <div>
-                <h4 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)' }}>{opt.optionTitle}</h4>
-                {opt.description && (
+                <h4 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)' }}>{opt?.optionTitle || 'Option'}</h4>
+                {opt?.description && (
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '6px', lineHeight: '1.4' }}>{opt.description}</p>
                 )}
               </div>
@@ -283,12 +263,14 @@ const ComparisonPage = () => {
               {/* Pros */}
               <div>
                 <div style={{ color: 'var(--success)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '6px' }}>Pros</div>
-                {opt.pros ? (
+                {opt?.pros && typeof opt.pros === 'string' ? (
                   <ul style={{ paddingLeft: '16px', margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
                     {opt.pros.split(',').map((pro, pIdx) => (
-                      <li key={pIdx}>{pro.trim()}</li>
+                      <li key={pIdx}>{String(pro).trim()}</li>
                     ))}
                   </ul>
+                ) : opt?.pros ? (
+                  <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>{String(opt.pros)}</span>
                 ) : (
                   <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic', margin: 0 }}>None mentioned</p>
                 )}
@@ -297,12 +279,14 @@ const ComparisonPage = () => {
               {/* Cons */}
               <div>
                 <div style={{ color: 'var(--neon-pink)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '6px' }}>Cons</div>
-                {opt.cons ? (
+                {opt?.cons && typeof opt.cons === 'string' ? (
                   <ul style={{ paddingLeft: '16px', margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
                     {opt.cons.split(',').map((con, cIdx) => (
-                      <li key={cIdx}>{con.trim()}</li>
+                      <li key={cIdx}>{String(con).trim()}</li>
                     ))}
                   </ul>
+                ) : opt?.cons ? (
+                  <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>{String(opt.cons)}</span>
                 ) : (
                   <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic', margin: 0 }}>None mentioned</p>
                 )}

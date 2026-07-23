@@ -10,40 +10,52 @@ const DecisionBoard = () => {
   const searchQuery = searchParams.get('search') || '';
   
   const [decisions, setDecisions] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState('All');
 
-  // Fetch decisions from backend on mount
+  // Fetch decisions and current user from backend on mount
   useEffect(() => {
-    const fetchDecisions = async () => {
+    const fetchDecisionsAndUser = async () => {
       try {
-        const res = await api.get('/api/decisions');
-        if (res.data?.success) {
+        const [res, userRes] = await Promise.all([
+          api.get('/api/decisions'),
+          api.get('/api/users/me').catch(() => null)
+        ]);
+        if (res.data?.success && Array.isArray(res.data.data)) {
           setDecisions(res.data.data);
+        } else {
+          setDecisions([]);
+        }
+        if (userRes && userRes.data?.success) {
+          setCurrentUser(userRes.data.data);
         }
       } catch (err) {
         console.error("Failed to fetch decisions from backend:", err);
+        setDecisions([]);
       } finally {
         setLoading(false);
       }
     };
-    fetchDecisions();
+    fetchDecisionsAndUser();
   }, []);
 
   const filteredDecisions = useMemo(() => {
-    // Only show public decisions on the main board
-    let result = decisions.filter(dec => !dec.communityId);
+    const list = Array.isArray(decisions) ? decisions : [];
+    let result = list.filter(dec => dec && !dec.communityId);
     
     if (searchQuery) {
       const lowerQuery = searchQuery.toLowerCase();
       result = result.filter(dec => 
-        (dec.title && dec.title.toLowerCase().includes(lowerQuery)) || 
-        (dec.category && dec.category.toLowerCase().includes(lowerQuery)) ||
-        (dec.status && dec.status.toLowerCase().includes(lowerQuery))
+        dec && (
+          (dec.title && String(dec.title).toLowerCase().includes(lowerQuery)) || 
+          (dec.category && String(dec.category).toLowerCase().includes(lowerQuery)) ||
+          (dec.status && String(dec.status).toLowerCase().includes(lowerQuery))
+        )
       );
     }
     if (filterCategory !== 'All') {
-      result = result.filter(dec => dec.category === filterCategory);
+      result = result.filter(dec => dec && dec.category === filterCategory);
     }
     return result;
   }, [decisions, searchQuery, filterCategory]);
@@ -165,9 +177,16 @@ const DecisionBoard = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
                   <ThumbsUp size={16} color="var(--neon-pink)" style={{ filter: 'drop-shadow(0 0 5px var(--neon-pink))' }} /> Active Consensus
                 </div>
-                <Link to={`/decision/${dec.id}`} className="btn-secondary" style={{ padding: '8px 20px', fontSize: '0.82rem', borderRadius: 'var(--radius-sm)' }}>
-                  View
-                </Link>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <Link to={`/decision/${dec.id}`} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.82rem', borderRadius: 'var(--radius-sm)' }}>
+                    View
+                  </Link>
+                  {currentUser && (String(currentUser.id) === String(dec.userId) || currentUser.role === 'ADMIN' || currentUser.role === 'admin') && (
+                    <Link to={`/decision/${dec.id}?edit=true`} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.82rem', borderRadius: 'var(--radius-sm)' }}>
+                      Edit
+                    </Link>
+                  )}
+                </div>
               </div>
             </div>
           ))}

@@ -3,6 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Plus, Trash2, Globe, Users, ChevronDown, Cpu, DollarSign, Briefcase, Compass, Heart } from 'lucide-react';
 import api from '../../api/api';
 
+const parseNumericValue = (str) => {
+  if (!str) return null;
+  const cleaned = str.replace(/[^\d.-]/g, '');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+};
+
 const categories = [
   { value: 'Technology', label: 'Technology', icon: Cpu, badgeClass: 'badge-cyan', iconColor: 'var(--neon-cyan)' },
   { value: 'Finance', label: 'Finance', icon: DollarSign, badgeClass: 'badge-success', iconColor: 'var(--success)' },
@@ -115,7 +122,12 @@ const CreateDecision = () => {
         title,
         description,
         category,
-        options
+        options: options.map(opt => ({
+          optionTitle: opt.optionTitle,
+          description: opt.description,
+          pros: opt.pros,
+          cons: opt.cons
+        }))
       };
       if (communityId) {
         payload.communityId = parseInt(communityId);
@@ -125,16 +137,62 @@ const CreateDecision = () => {
 
       if (res.data?.success) {
         const createdDecisionId = res.data.data.id;
-        localStorage.setItem(`decision_criteria_${createdDecisionId}`, JSON.stringify(criteria));
-        localStorage.setItem(`decision_option_values_${createdDecisionId}`, JSON.stringify(
-          options.map(opt => ({
-            optionTitle: opt.optionTitle,
-            values: opt.values
-          }))
-        ));
+        const createdOptions = res.data.data.options || [];
+
+        // Save parameters & values to backend
+        if (criteria && criteria.length > 0) {
+          const parameterDtos = await Promise.all(
+            criteria.map(critName => {
+              const req = {
+                name: critName,
+                unit: "",
+                weight: 1.0,
+                higherIsBetter: !(critName.toLowerCase().includes("price") || critName.toLowerCase().includes("cost") || critName.toLowerCase().includes("weight"))
+              };
+              return api.post(`/api/decisions/${createdDecisionId}/comparison/parameters`, req)
+                .then(r => r.data?.data)
+                .catch(err => {
+                  console.error("Failed to create parameter:", critName, err);
+                  alert(`Failed to save parameter "${critName}" to DB: ${err.response?.data?.message || err.message}`);
+                  return null;
+                });
+            })
+          );
+
+          const validParams = parameterDtos.filter(p => p !== null);
+
+          const valueRequests = [];
+          options.forEach((opt, optIdx) => {
+            const backendOpt = createdOptions.find(o => o.optionTitle === opt.optionTitle) || createdOptions[optIdx];
+            if (backendOpt) {
+              validParams.forEach(param => {
+                const userVal = opt.values?.[param.name];
+                if (userVal !== undefined && userVal !== null && userVal !== "") {
+                  valueRequests.push({
+                    optionId: backendOpt.id,
+                    parameterId: param.id,
+                    stringValue: String(userVal),
+                    numericValue: parseNumericValue(String(userVal))
+                  });
+                }
+              });
+            }
+          });
+
+          if (valueRequests.length > 0) {
+            try {
+              await api.post(`/api/decisions/${createdDecisionId}/comparison/values`, {
+                values: valueRequests
+              });
+            } catch (valErr) {
+              console.error("Failed to save parameter values in bulk:", valErr);
+              alert(`Failed to save specifications values to DB: ${valErr.response?.data?.message || valErr.message}`);
+            }
+          }
+        }
 
         alert("Decision initialized successfully!");
-        navigate('/decision-board');
+        navigate(`/decision/${createdDecisionId}`);
       }
     } catch (err) {
       console.error("Failed to create decision:", err);
