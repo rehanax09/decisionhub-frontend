@@ -505,10 +505,9 @@ const CommunityDetails = () => {
                  {members.map(member => (
                    <div key={member.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'var(--panel-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
                      <div>
-                       <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>@{member.username}</div>
-                       <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                         {member.email || 'No email provided'}
-                       </div>
+                      <div style={{fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                        TEST @{member.username}
+                      </div>
                      </div>
                      {member.username !== community.moderatorUsername ? (
                        <button 

@@ -268,9 +268,7 @@ const Communities = () => {
                     <div key={member.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
                       <div>
                         <div style={{ fontSize: '0.88rem', fontWeight: '600', color: 'var(--text-primary)' }}>@{member.username}</div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                          {member.email || 'No email provided'}
-                        </div>
+                        
                       </div>
                       
                       {member.username !== selected.moderatorUsername ? (
