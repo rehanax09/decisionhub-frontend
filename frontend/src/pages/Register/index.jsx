@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from "../../api/api";
+import { useToast } from '../../context/ToastContext';
 
 const Register = () => {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -40,7 +42,7 @@ const Register = () => {
     e.preventDefault();
 
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match");
+      showToast("Passwords do not match", "warning");
       return;
     }
 
@@ -48,14 +50,14 @@ const Register = () => {
 
     try {
       const response = await api.post("/api/auth/register", {
-  username: formData.fullName,
-  email: formData.email,
-  password: formData.password
-});
+        username: formData.fullName,
+        email: formData.email,
+        password: formData.password
+      });
       
 
       console.log(response.data);
-      alert("Registration Successful!");
+      showToast("Registration Successful!", "success");
 
       setFormData({
         fullName: '',
@@ -70,9 +72,9 @@ const Register = () => {
       console.error(error);
 
       if (error.response) {
-        alert(error.response.data.message || "Registration Failed");
+        showToast(error.response.data.message || "Registration Failed", "error");
       } else {
-        alert("Unable to connect to server");
+        showToast("Unable to connect to server", "error");
       }
     } finally {
       setIsSubmitting(false);

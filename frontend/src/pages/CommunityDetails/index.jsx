@@ -2,10 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Users, Shield, MessageSquare, Plus, ArrowLeft, CheckCircle, X, ThumbsUp, Clock } from 'lucide-react';
 import api from '../../api/api';
+import { useToast } from '../../context/ToastContext';
+import ConfirmModal from '../../components/ConfirmModal';
 
 const CommunityDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  
+  const [showRemoveMemberConfirm, setShowRemoveMemberConfirm] = useState(false);
+  const [memberIdToRemove, setMemberIdToRemove] = useState(null);
 
   const [community, setCommunity] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -98,7 +104,7 @@ const CommunityDetails = () => {
         const msg = res.data?.message || "Join request processed.";
         
         if (detail.toLowerCase().includes("joined")) {
-          alert("Joined community successfully!");
+          showToast("Joined community successfully!", "success");
           setIsJoined(true);
           setIsPending(false);
           setCommunity(prev => ({ ...prev, memberCount: prev.memberCount + 1 }));
@@ -109,7 +115,7 @@ const CommunityDetails = () => {
             setDecisions(commDecisions);
           }
         } else {
-          alert(detail || msg);
+          showToast(detail || msg, "success");
           setIsPending(true);
         }
       }
@@ -117,7 +123,7 @@ const CommunityDetails = () => {
       console.error(err);
       const errMsg = err.response?.data?.message || "";
       if (errMsg.toLowerCase().includes("already a member")) {
-        alert("You are already a member of this community!");
+        showToast("You are already a member of this community!", "info");
         setIsJoined(true);
         setIsPending(false);
         // Fetch decisions now that they are joined
@@ -127,10 +133,10 @@ const CommunityDetails = () => {
           setDecisions(commDecisions);
         }
       } else if (errMsg.toLowerCase().includes("pending join request")) {
-        alert("Your join request is already pending moderator approval!");
+        showToast("Your join request is already pending moderator approval!", "warning");
         setIsPending(true);
       } else {
-        alert(errMsg || "An error occurred.");
+        showToast(errMsg || "An error occurred.", "error");
       }
     }
   };
@@ -145,7 +151,7 @@ const CommunityDetails = () => {
       }
     } catch (err) {
       console.error("Failed to load requests:", err);
-      alert("Failed to load requests.");
+      showToast("Failed to load requests.", "error");
     } finally {
       setLoadingRequests(false);
     }
@@ -155,7 +161,7 @@ const CommunityDetails = () => {
     try {
       const res = await api.post(`/api/communities/requests/${requestId}/handle`, { accept });
       if (res.data?.success) {
-        alert(res.data.message || (accept ? "Request accepted." : "Request rejected."));
+        showToast(res.data.message || (accept ? "Request accepted." : "Request rejected."), "success");
         setJoinRequests(prev => prev.filter(req => req.id !== requestId));
         if (accept) {
           setCommunity(prev => ({ ...prev, memberCount: prev.memberCount + 1 }));
@@ -163,7 +169,7 @@ const CommunityDetails = () => {
       }
     } catch (err) {
       console.error("Failed to process request:", err);
-      alert(err.response?.data?.message || "Failed to process request.");
+      showToast(err.response?.data?.message || "Failed to process request.", "error");
     }
   };
 
@@ -188,18 +194,26 @@ const CommunityDetails = () => {
     }
   };
 
-  const handleRemoveMember = async (memberId) => {
-    if (!window.confirm("Remove this member from the community?")) return;
+  const handleRemoveMember = (memberId) => {
+    setMemberIdToRemove(memberId);
+    setShowRemoveMemberConfirm(true);
+  };
+
+  const handleConfirmRemoveMember = async () => {
+    if (!memberIdToRemove) return;
+    setShowRemoveMemberConfirm(false);
     try {
-      const res = await api.delete(`/api/communities/${id}/members/${memberId}`);
+      const res = await api.delete(`/api/communities/${id}/members/${memberIdToRemove}`);
       if (res.data?.success) {
-        alert("Member removed successfully.");
-        setMembers(prev => prev.filter(m => m.userId !== memberId));
+        showToast("Member removed successfully.", "success");
+        setMembers(prev => prev.filter(m => m.userId !== memberIdToRemove));
         setCommunity(prev => ({ ...prev, memberCount: Math.max(0, prev.memberCount - 1) }));
       }
     } catch (err) {
       console.error("Failed to remove member:", err);
-      alert(err.response?.data?.message || "Failed to remove member.");
+      showToast(err.response?.data?.message || "Failed to remove member.", "error");
+    } finally {
+      setMemberIdToRemove(null);
     }
   };
 
@@ -544,6 +558,18 @@ const CommunityDetails = () => {
           </div>
         </div>
       )}
+      <ConfirmModal
+        isOpen={showRemoveMemberConfirm}
+        title="Remove Member"
+        message="Are you sure you want to remove this member from the community?"
+        onConfirm={handleConfirmRemoveMember}
+        onCancel={() => {
+          setShowRemoveMemberConfirm(false);
+          setMemberIdToRemove(null);
+        }}
+        confirmText="Remove"
+        type="destructive"
+      />
     </div>
   );
 };

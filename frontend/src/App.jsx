@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
+import { ToastProvider } from './context/ToastContext';
 
 // Layouts
 import MainLayout from './layouts/MainLayout';
@@ -90,39 +91,41 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <Routes>
-        {/* Public Routes with Navbar and Footer */}
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<Landing />} />
-        </Route>
-        
-        {/* Auth Routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+    <ToastProvider>
+      <Router>
+        <Routes>
+          {/* Public Routes with Navbar and Footer */}
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<Landing />} />
+          </Route>
+          
+          {/* Auth Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-        {/* Dashboard Routes with Sidebar and Top Navbar */}
-        <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/decision-board" element={<DecisionBoards />} />
-          <Route path="/create-decision" element={<CreateDecision />} />
-          <Route path="/decision/:id" element={<DecisionDetails />} />
-          <Route path="/decision/:id/compare" element={<ComparisonPage />} />
-          <Route path="/decision/:id/discuss" element={<Discussion />} />
-          <Route path="/polls" element={<Polls />} />
-          <Route path="/communities" element={<Communities />} />
-          <Route path="/communities/:id" element={<CommunityDetails />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-        </Route>
-        
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+          {/* Dashboard Routes with Sidebar and Top Navbar */}
+          <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/decision-board" element={<DecisionBoards />} />
+            <Route path="/create-decision" element={<CreateDecision />} />
+            <Route path="/decision/:id" element={<DecisionDetails />} />
+            <Route path="/decision/:id/compare" element={<ComparisonPage />} />
+            <Route path="/decision/:id/discuss" element={<Discussion />} />
+            <Route path="/polls" element={<Polls />} />
+            <Route path="/communities" element={<Communities />} />
+            <Route path="/communities/:id" element={<CommunityDetails />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/notifications" element={<Notifications />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          </Route>
+          
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+    </ToastProvider>
   );
 }
 

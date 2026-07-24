@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Plus, Trash2, Globe, Users, ChevronDown, Cpu, DollarSign, Briefcase, Compass, Heart } from 'lucide-react';
 import api from '../../api/api';
+import { useToast } from '../../context/ToastContext';
 
 const parseNumericValue = (str) => {
   if (!str) return null;
@@ -21,6 +22,7 @@ const categories = [
 const CreateDecision = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { showToast } = useToast();
   const searchParams = new URLSearchParams(location.search);
   const paramCommunityId = searchParams.get('communityId');
   
@@ -84,7 +86,7 @@ const CreateDecision = () => {
     if (options.length > 2) {
       setOptions(options.filter((_, i) => i !== index));
     } else {
-      alert("You must have at least two options.");
+      showToast("You must have at least two options.", "warning");
     }
   };
 
@@ -107,12 +109,12 @@ const CreateDecision = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) {
-      alert("Please fill in the title and description.");
+      showToast("Please fill in the title and description.", "warning");
       return;
     }
 
     if (options.some(opt => !opt.optionTitle.trim())) {
-      alert("All options must have a title.");
+      showToast("All options must have a title.", "warning");
       return;
     }
 
@@ -153,7 +155,7 @@ const CreateDecision = () => {
                 .then(r => r.data?.data)
                 .catch(err => {
                   console.error("Failed to create parameter:", critName, err);
-                  alert(`Failed to save parameter "${critName}" to DB: ${err.response?.data?.message || err.message}`);
+                  showToast(`Failed to save parameter "${critName}": ${err.response?.data?.message || err.message}`, "error");
                   return null;
                 });
             })
@@ -186,17 +188,17 @@ const CreateDecision = () => {
               });
             } catch (valErr) {
               console.error("Failed to save parameter values in bulk:", valErr);
-              alert(`Failed to save specifications values to DB: ${valErr.response?.data?.message || valErr.message}`);
+              showToast(`Failed to save specifications values: ${valErr.response?.data?.message || valErr.message}`, "error");
             }
           }
         }
 
-        alert("Decision initialized successfully!");
+        showToast("Decision initialized successfully!", "success");
         navigate(`/decision/${createdDecisionId}`);
       }
     } catch (err) {
       console.error("Failed to create decision:", err);
-      alert(err.response?.data?.message || "Failed to initialize decision.");
+      showToast(err.response?.data?.message || "Failed to initialize decision.", "error");
     } finally {
       setIsSubmitting(false);
     }

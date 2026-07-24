@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, MessageSquare, TrendingUp, Search, PlusCircle, CheckCircle, Shield, X, ArrowRight, Filter, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/api';
+import { useToast } from '../../context/ToastContext';
 
 const CATEGORY_STYLES = {
   Technology: { color: 'var(--neon-cyan)', icon: <TrendingUp size={24} />, badgeClass: 'badge-cyan' },
@@ -15,6 +16,7 @@ const DEFAULT_STYLE = { color: 'var(--neon-cyan)', icon: <Users size={24} />, ba
 
 const Communities = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [communities, setCommunities] = useState([]);
@@ -113,7 +115,7 @@ const Communities = () => {
         // Join community
         const res = await api.post(`/api/communities/${id}/join`);
         const msg = res.data?.message || res.data?.data || "Join request sent.";
-        alert(msg);
+        showToast(msg, msg.toLowerCase().includes("joined") ? "success" : "info");
         
         if (msg.toLowerCase().includes("joined")) {
            setCommunities(prev => prev.map(c => {
@@ -128,12 +130,12 @@ const Communities = () => {
                return { ...c, isPending: true };
              }
              return c;
-           }));
+            }));
         }
       }
     } catch (err) {
       console.error("Failed to toggle join status:", err);
-      alert(err.response?.data?.message || "An error occurred.");
+      showToast(err.response?.data?.message || "An error occurred.", "error");
     }
   };
 
@@ -168,11 +170,11 @@ const Communities = () => {
         setCategory('Technology');
         setDescription('');
         setShowModal(false);
-        alert("Community created successfully!");
+        showToast("Community created successfully!", "success");
       }
     } catch (err) {
       console.error("Failed to create community:", err);
-      alert(err.response?.data?.message || "Failed to create community.");
+      showToast(err.response?.data?.message || "Failed to create community.", "error");
     } finally {
       setIsSubmitting(false);
     }

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Trash2, Eye } from 'lucide-react';
 import api from '../../../api/api';
+import { useToast } from '../../../context/ToastContext';
+import ConfirmModal from '../../../components/ConfirmModal';
 
 const statusColors = {
   ACTIVE:  { bg: 'rgba(0,255,153,0.1)',  color: 'var(--success)',  border: 'rgba(0,255,153,0.3)'  },
@@ -8,9 +10,14 @@ const statusColors = {
 };
 
 const Communities = () => {
+  const { showToast } = useToast();
   const [communities, setCommunities] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Custom Modal States
+  const [communityToDelete, setCommunityToDelete] = useState(null);
+  const [memberToRemove, setMemberToRemove] = useState(null);
 
   // Join Requests states
   const [requests, setRequests] = useState([]);
@@ -90,45 +97,55 @@ const Communities = () => {
         setSelected(updatedSelected);
         setCommunities(prev => prev.map(c => c.id === selected.id ? updatedSelected : c));
       }
-      alert(accept ? "Request approved successfully." : "Request rejected successfully.");
+      showToast(accept ? "Request approved successfully." : "Request rejected successfully.", "success");
     } catch (err) {
       console.error("Error handling join request:", err);
-      alert(err.response?.data?.message || "Could not process request on server.");
+      showToast(err.response?.data?.message || "Could not process request on server.", "error");
     }
   };
 
   // Delete community permanently
-  const remove = async (id) => {
-    if (window.confirm('Are you sure you want to delete this community permanently? This will remove all associated member data.')) {
-      try {
-        await api.delete(`/api/admin/communities/${id}`);
-        setCommunities(prev => prev.filter(x => x.id !== id));
-        alert("Community deleted successfully.");
-      } catch (err) {
-        console.error("Failed to delete community:", err);
-        alert(err.response?.data?.message || "Could not delete community on server.");
-      }
+  const handleRemoveCommunityClick = (id) => {
+    setCommunityToDelete(id);
+  };
+
+  const handleConfirmDeleteCommunity = async () => {
+    if (!communityToDelete) return;
+    const id = communityToDelete;
+    setCommunityToDelete(null);
+    try {
+      await api.delete(`/api/admin/communities/${id}`);
+      setCommunities(prev => prev.filter(x => x.id !== id));
+      showToast("Community deleted successfully.", "success");
+    } catch (err) {
+      console.error("Failed to delete community:", err);
+      showToast(err.response?.data?.message || "Could not delete community on server.", "error");
     }
   };
 
   // Remove member from community
-  const handleRemoveMember = async (memberId) => {
-    if (window.confirm("Remove this member from the community?")) {
-      try {
-        await api.delete(`/api/communities/${selected.id}/members/${memberId}`);
-        setMembers(prev => prev.filter(m => m.userId !== memberId));
-        
-        // Decrement memberCount locally
-        if (selected) {
-          const updatedSelected = { ...selected, memberCount: Math.max(0, selected.memberCount - 1) };
-          setSelected(updatedSelected);
-          setCommunities(prev => prev.map(c => c.id === selected.id ? updatedSelected : c));
-        }
-        alert("Member removed successfully.");
-      } catch (err) {
-        console.error("Error removing member:", err);
-        alert(err.response?.data?.message || "Could not remove member from community.");
+  const handleRemoveMemberClick = (memberId) => {
+    setMemberToRemove(memberId);
+  };
+
+  const handleConfirmRemoveMember = async () => {
+    if (!memberToRemove) return;
+    const memberId = memberToRemove;
+    setMemberToRemove(null);
+    try {
+      await api.delete(`/api/communities/${selected.id}/members/${memberId}`);
+      setMembers(prev => prev.filter(m => m.userId !== memberId));
+      
+      // Decrement memberCount locally
+      if (selected) {
+        const updatedSelected = { ...selected, memberCount: Math.max(0, selected.memberCount - 1) };
+        setSelected(updatedSelected);
+        setCommunities(prev => prev.map(c => c.id === selected.id ? updatedSelected : c));
       }
+      showToast("Member removed successfully.", "success");
+    } catch (err) {
+      console.error("Error removing member:", err);
+      showToast(err.response?.data?.message || "Could not remove member from community.", "error");
     }
   };
 
@@ -186,7 +203,7 @@ const Communities = () => {
                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                         <button onClick={() => setSelected(c)} title="View Details & Requests" style={{ padding: '6px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--neon-cyan)', cursor: 'pointer', display: 'flex' }}><Eye size={15}/></button>
-                        <button onClick={() => remove(c.id)} title="Delete permanently" style={{ padding: '6px', borderRadius: '8px', border: '1px solid rgba(255,0,0,0.3)', background: 'transparent', color: '#ff4444', cursor: 'pointer', display: 'flex' }}><Trash2 size={15}/></button>
+                        <button onClick={() => handleRemoveCommunityClick(c.id)} title="Delete permanently" style={{ padding: '6px', borderRadius: '8px', border: '1px solid rgba(255,0,0,0.3)', background: 'transparent', color: '#ff4444', cursor: 'pointer', display: 'flex' }}><Trash2 size={15}/></button>
                       </div>
                     </td>
                   </tr>
@@ -273,7 +290,7 @@ const Communities = () => {
                       
                       {member.username !== selected.moderatorUsername ? (
                         <button 
-                          onClick={() => handleRemoveMember(member.userId)}
+                          onClick={() => handleRemoveMemberClick(member.userId)}
                           style={{ 
                             padding: '4px 10px', 
                             fontSize: '0.75rem', 
@@ -309,6 +326,26 @@ const Communities = () => {
           </div>
         </div>
       )}
+      {/* Confirmation Modals */}
+      <ConfirmModal
+        isOpen={communityToDelete !== null}
+        title="Delete Community"
+        message="Are you sure you want to delete this community permanently? This will remove all associated member data."
+        onConfirm={handleConfirmDeleteCommunity}
+        onCancel={() => setCommunityToDelete(null)}
+        confirmText="Delete"
+        type="destructive"
+      />
+
+      <ConfirmModal
+        isOpen={memberToRemove !== null}
+        title="Remove Member"
+        message="Are you sure you want to remove this member from the community?"
+        onConfirm={handleConfirmRemoveMember}
+        onCancel={() => setMemberToRemove(null)}
+        confirmText="Remove"
+        type="destructive"
+      />
     </div>
   );
 };

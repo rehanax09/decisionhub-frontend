@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { MessageSquare, CheckCircle, ArrowLeft, Trash2, Edit3, Plus, X, BarChart2, Check } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ChartTooltip, Legend } from 'recharts';
 import api from '../../api/api';
+import { useToast } from '../../context/ToastContext';
+import ConfirmModal from '../../components/ConfirmModal';
 
 const parseNumericValue = (str) => {
   if (!str) return null;
@@ -26,6 +28,8 @@ const mergeCriteriaAndValues = (fetchedDecision) => {
 const DecisionDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [decision, setDecision] = useState(null);
   const [comparisonTable, setComparisonTable] = useState(null);
@@ -167,24 +171,25 @@ const DecisionDetails = () => {
       }
     } catch (err) {
       console.error("Failed to cast vote:", err);
-      alert(err.response?.data?.message || "Failed to cast vote.");
+      showToast(err.response?.data?.message || "Failed to cast vote.", "error");
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this decision board? This action cannot be undone.")) {
-      return;
-    }
-    
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setShowDeleteConfirm(false);
     try {
       const res = await api.delete(`/api/decisions/${id}`);
       if (res.data?.success) {
-        alert("Decision board deleted successfully.");
+        showToast("Decision board deleted successfully.", "success");
         navigate("/decision-board");
       }
     } catch (err) {
       console.error("Failed to delete decision board:", err);
-      alert(err.response?.data?.message || "Failed to delete decision board.");
+      showToast(err.response?.data?.message || "Failed to delete decision board.", "error");
     }
   };
 
@@ -240,7 +245,7 @@ const DecisionDetails = () => {
     if (!newModalCriterion.trim()) return;
     const name = newModalCriterion.trim();
     if (editParameters.some(p => !p.isDeleted && p.name.toLowerCase() === name.toLowerCase())) {
-      alert("Criterion already exists.");
+      showToast("Criterion already exists.", "warning");
       return;
     }
     const tempId = `temp_${Date.now()}`;
@@ -275,7 +280,7 @@ const DecisionDetails = () => {
     const activeCount = editOptions.filter(o => !o.isDeleted).length;
     
     if (activeCount <= 2 && !target.isDeleted) {
-      alert("A decision board must have at least two options.");
+      showToast("A decision board must have at least two options.", "warning");
       return;
     }
 
@@ -297,18 +302,18 @@ const DecisionDetails = () => {
   const handleSave = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!editTitle || !editTitle.trim() || !editDescription || !editDescription.trim()) {
-      alert("Title and description are required.");
+      showToast("Title and description are required.", "warning");
       return;
     }
 
     const activeOptions = (editOptions || []).filter(o => o && !o.isDeleted);
     if (activeOptions.length < 2) {
-      alert("A decision board must have at least two options.");
+      showToast("A decision board must have at least two options.", "warning");
       return;
     }
 
     if (activeOptions.some(opt => !opt || !opt.optionTitle || !opt.optionTitle.trim())) {
-      alert("All options must have a title.");
+      showToast("All options must have a title.", "warning");
       return;
     }
 
@@ -418,10 +423,10 @@ const DecisionDetails = () => {
 
       await fetchDecisionDetails();
       setActiveTab('overview');
-      alert("Decision board details and criteria updated successfully!");
+      showToast("Decision board details and criteria updated successfully!", "success");
     } catch (err) {
       console.error("Failed to save board details:", err);
-      alert(err.response?.data?.message || "Failed to save changes.");
+      showToast(err.response?.data?.message || "Failed to save changes.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -562,7 +567,7 @@ const DecisionDetails = () => {
               </button>
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={handleDeleteClick}
                 className="btn-destructive"
                 style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '0.9rem' }}
               >
@@ -1327,6 +1332,15 @@ const DecisionDetails = () => {
         </div>
       )}
 
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="Delete Decision Board"
+        message="Are you sure you want to delete this decision board? This action cannot be undone."
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+        confirmText="Delete"
+        type="destructive"
+      />
     </div>
   );
 };

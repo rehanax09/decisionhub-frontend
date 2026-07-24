@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from "../../api/api";
+import { useToast } from '../../context/ToastContext';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +31,7 @@ const Login = () => {
       const role = email.toLowerCase().includes('admin') ? 'admin' : 'user';
       localStorage.setItem("role", role);
 
-      alert("Login Successful!");
+      showToast("Login Successful!", "success");
 
       // Redirect based on role
       if (role === 'admin') {
@@ -42,9 +44,9 @@ const Login = () => {
       console.error(error);
 
       if (error.response) {
-        alert(error.response.data.message || "Invalid email or password");
+        showToast(error.response.data.message || "Invalid email or password", "error");
       } else {
-        alert("Unable to connect to server");
+        showToast("Unable to connect to server", "error");
       }
     } finally {
       setIsSubmitting(false);
