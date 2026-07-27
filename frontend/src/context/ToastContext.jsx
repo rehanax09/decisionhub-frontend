@@ -45,28 +45,28 @@ export const ToastProvider = ({ children }) => {
     switch (type) {
       case 'error':
         return {
-          icon: <XCircle size={18} color="var(--neon-pink)" />,
-          borderLeft: '4px solid var(--neon-pink)',
-          shadow: '0 0 10px rgba(255, 0, 255, 0.2)'
+          color: 'var(--neon-pink)',
+          icon: <XCircle size={20} color="var(--neon-pink)" style={{ filter: 'drop-shadow(0 0 4px var(--neon-pink))' }} />,
+          shadow: '0 8px 32px 0 rgba(0, 0, 0, 0.45), 0 0 12px rgba(255, 0, 255, 0.15)'
         };
       case 'warning':
         return {
-          icon: <AlertTriangle size={18} color="#FF8C00" />,
-          borderLeft: '4px solid #FF8C00',
-          shadow: '0 0 10px rgba(255, 140, 0, 0.2)'
+          color: '#FFAA00',
+          icon: <AlertTriangle size={20} color="#FFAA00" style={{ filter: 'drop-shadow(0 0 4px #FFAA00)' }} />,
+          shadow: '0 8px 32px 0 rgba(0, 0, 0, 0.45), 0 0 12px rgba(255, 170, 0, 0.15)'
         };
       case 'info':
         return {
-          icon: <Info size={18} color="var(--neon-cyan)" />,
-          borderLeft: '4px solid var(--neon-cyan)',
-          shadow: '0 0 10px rgba(0, 245, 255, 0.2)'
+          color: '#2563EB',
+          icon: <Info size={20} color="#2563EB" style={{ filter: 'drop-shadow(0 0 4px #2563EB)' }} />,
+          shadow: '0 8px 32px 0 rgba(0, 0, 0, 0.45), 0 0 12px rgba(37, 99, 235, 0.15)'
         };
       case 'success':
       default:
         return {
-          icon: <CheckCircle size={18} color="#00FF99" />,
-          borderLeft: '4px solid #00FF99',
-          shadow: '0 0 10px rgba(0, 255, 153, 0.2)'
+          color: 'var(--neon-cyan)',
+          icon: <CheckCircle size={20} color="var(--neon-cyan)" style={{ filter: 'drop-shadow(0 0 4px var(--neon-cyan))' }} />,
+          shadow: '0 8px 32px 0 rgba(0, 0, 0, 0.45), 0 0 12px rgba(0, 245, 255, 0.15)'
         };
     }
   };
@@ -78,13 +78,13 @@ export const ToastProvider = ({ children }) => {
       {/* Toast Portal Container */}
       <div style={{
         position: 'fixed',
-        bottom: '24px',
-        right: '24px',
-        zIndex: 99999,
+        bottom: '28px',
+        right: '28px',
+        zIndex: 999999,
         display: 'flex',
         flexDirection: 'column-reverse',
         gap: '12px',
-        maxWidth: '350px',
+        maxWidth: '380px',
         width: '100%',
         pointerEvents: 'none'
       }}>
@@ -95,27 +95,36 @@ export const ToastProvider = ({ children }) => {
               key={t.id}
               className={t.isExiting ? 'toast-exit' : 'toast-enter'}
               style={{
+                position: 'relative',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '14px 18px',
-                background: 'rgba(15, 15, 15, 0.85)',
-                backdropFilter: 'blur(12px)',
+                padding: '16px 20px',
+                background: 'var(--bg-secondary)',
+                backdropFilter: 'blur(16px)',
                 border: '1px solid var(--glass-border)',
-                borderLeft: details.borderLeft,
+                borderLeft: `5px solid ${details.color}`,
                 borderRadius: '8px',
-                boxShadow: `0 8px 32px 0 rgba(0, 0, 0, 0.37), ${details.shadow}`,
+                boxShadow: `0 8px 32px 0 rgba(0, 0, 0, 0.4), ${details.shadow}`,
                 color: 'var(--text-primary)',
                 fontFamily: 'Outfit, sans-serif',
-                fontSize: '0.92rem',
                 pointerEvents: 'auto',
-                transition: 'all 0.3s ease'
+                transition: 'all 0.3s ease',
+                overflow: 'hidden'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-                {details.icon}
-                <span style={{ lineHeight: '1.4', fontWeight: '500' }}>{t.message}</span>
+                <div style={{ display: 'flex', alignItems: 'center' }}>{details.icon}</div>
+                <span style={{ 
+                  fontSize: '0.94rem', 
+                  lineHeight: '1.4', 
+                  fontWeight: '500',
+                  color: 'var(--text-primary)'
+                }}>
+                  {t.message}
+                </span>
               </div>
+              
               <button
                 onClick={() => removeToast(t.id)}
                 style={{
@@ -126,14 +135,28 @@ export const ToastProvider = ({ children }) => {
                   padding: '4px',
                   display: 'flex',
                   alignItems: 'center',
-                  marginLeft: '12px',
+                  marginLeft: '14px',
                   transition: 'color 0.2s'
                 }}
                 onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
                 onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
               >
-                <X size={14} />
+                <X size={16} />
               </button>
+
+              {/* Glowing animated progress timer bar */}
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                height: '2.5px',
+                width: '100%',
+                background: details.color,
+                boxShadow: `0 0 8px ${details.color}`,
+                animation: 'toastProgress 4s linear forwards',
+                transformOrigin: 'left',
+                opacity: 0.9
+              }} />
             </div>
           );
         })}

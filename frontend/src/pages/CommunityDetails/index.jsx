@@ -518,11 +518,16 @@ const CommunityDetails = () => {
                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                  {members.map(member => (
                    <div key={member.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'var(--panel-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
-                     <div>
-                      <div style={{fontWeight: 'bold', color: 'var(--text-primary)' }}>
-                        TEST @{member.username}
+                      <div>
+                        <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                          @{member.username}
+                        </div>
+                        {member.email && (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            {member.email}
+                          </div>
+                        )}
                       </div>
-                     </div>
                      {member.username !== community.moderatorUsername ? (
                        <button 
                          onClick={() => handleRemoveMember(member.userId)} 

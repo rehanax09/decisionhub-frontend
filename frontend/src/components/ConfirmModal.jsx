@@ -14,6 +14,10 @@ const ConfirmModal = ({
   if (!isOpen) return null;
 
   const isDestructive = type === 'destructive';
+  const actionColor = isDestructive ? '#EF4444' : 'var(--neon-cyan)';
+  const actionBg = isDestructive ? 'rgba(239, 68, 68, 0.1)' : 'rgba(0, 245, 255, 0.08)';
+  const actionBorder = isDestructive ? 'rgba(239, 68, 68, 0.3)' : 'rgba(0, 245, 255, 0.3)';
+  const actionBgHover = isDestructive ? 'rgba(239, 68, 68, 0.25)' : 'rgba(0, 245, 255, 0.2)';
 
   return (
     <div style={{
@@ -22,7 +26,7 @@ const ConfirmModal = ({
       left: 0,
       width: '100vw',
       height: '100vh',
-      background: 'rgba(0, 0, 0, 0.75)',
+      background: 'rgba(3, 3, 5, 0.75)',
       backdropFilter: 'blur(8px)',
       zIndex: 100000,
       display: 'flex',
@@ -34,10 +38,12 @@ const ConfirmModal = ({
         className="glass-panel modal-animate" 
         style={{
           width: '100%',
-          maxWidth: '400px',
-          padding: '30px',
+          maxWidth: '420px',
+          padding: '30px 36px',
           borderRadius: '16px',
-          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
+          background: 'rgba(15, 15, 18, 0.95)',
+          border: '1px solid var(--glass-border)',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.45)',
           textAlign: 'center',
           display: 'flex',
           flexDirection: 'column',
@@ -45,42 +51,70 @@ const ConfirmModal = ({
           gap: '16px'
         }}
       >
+        {/* Subtle icon container */}
         <div style={{
           width: '56px',
           height: '56px',
           borderRadius: '50%',
-          background: 'rgba(255,255,255,0.03)',
+          background: 'rgba(255, 255, 255, 0.02)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           border: '1px solid var(--glass-border)',
-          marginBottom: '8px'
+          marginBottom: '4px'
         }}>
           {isDestructive ? (
-            <Trash2 size={24} color="var(--neon-pink)" style={{ filter: 'drop-shadow(0 0 5px rgba(255,0,255,0.4))' }} />
+            <Trash2 size={24} color="#EF4444" />
           ) : (
-            <AlertTriangle size={24} color="var(--neon-cyan)" style={{ filter: 'drop-shadow(0 0 5px rgba(0,245,255,0.4))' }} />
+            <AlertTriangle size={24} color="var(--neon-cyan)" />
           )}
         </div>
 
-        <h3 style={{ margin: 0, fontFamily: 'Outfit', fontSize: '1.4rem', color: 'var(--text-primary)' }}>{title}</h3>
-        <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5' }}>{message}</p>
+        <h3 style={{ 
+          margin: 0, 
+          fontFamily: 'Outfit', 
+          fontSize: '1.45rem', 
+          fontWeight: '600',
+          color: 'var(--text-primary)'
+        }}>
+          {title}
+        </h3>
+        
+        <p style={{ 
+          margin: 0, 
+          color: 'var(--text-secondary)', 
+          fontSize: '0.96rem', 
+          lineHeight: '1.55',
+          fontFamily: 'Outfit',
+          fontWeight: '400'
+        }}>
+          {message}
+        </p>
 
         <div style={{ display: 'flex', gap: '12px', width: '100%', marginTop: '12px' }}>
           <button 
             type="button"
             onClick={onCancel}
-            className="btn-secondary"
             style={{ 
               flex: 1, 
               height: '40px', 
               borderRadius: '8px', 
               fontSize: '0.9rem',
-              background: 'rgba(255, 255, 255, 0.05)',
+              fontFamily: 'Outfit',
+              background: 'rgba(255, 255, 255, 0.02)',
               border: '1px solid var(--glass-border)',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
-              fontWeight: '500'
+              fontWeight: '500',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.color = 'var(--text-primary)';
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
             }}
           >
             {cancelText}
@@ -89,14 +123,26 @@ const ConfirmModal = ({
           <button 
             type="button"
             onClick={onConfirm}
-            className={isDestructive ? 'btn-destructive' : 'btn-primary'}
             style={{ 
               flex: 1, 
               height: '40px', 
               borderRadius: '8px', 
               fontSize: '0.9rem',
+              fontFamily: 'Outfit',
+              background: actionBg,
+              color: actionColor,
+              border: `1px solid ${actionBorder}`,
               cursor: 'pointer',
-              fontWeight: '600'
+              fontWeight: '600',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = actionBgHover;
+              e.currentTarget.style.boxShadow = `0 0 10px ${actionBgHover}`;
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = actionBg;
+              e.currentTarget.style.boxShadow = 'none';
             }}
           >
             {confirmText}
