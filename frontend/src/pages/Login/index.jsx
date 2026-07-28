@@ -28,7 +28,19 @@ const Login = () => {
         localStorage.setItem("token", response.data.data.token);
       }
 
-      const role = email.toLowerCase().includes('admin') ? 'admin' : 'user';
+      // Fetch actual user profile to get the role from the backend database
+      let role = 'user';
+      try {
+        const userRes = await api.get('/api/users/me');
+        if (userRes.data?.success && userRes.data.data?.role) {
+          role = String(userRes.data.data.role).toLowerCase() === 'admin' ? 'admin' : 'user';
+        }
+      } catch (profileError) {
+        console.error("Failed to fetch user profile, falling back to email check:", profileError);
+        if (email.toLowerCase().includes('admin')) {
+          role = 'admin';
+        }
+      }
       localStorage.setItem("role", role);
 
       showToast("Login Successful!", "success");
