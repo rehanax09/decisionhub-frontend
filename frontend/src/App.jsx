@@ -27,6 +27,7 @@ import ComparisonPage from './pages/ComparisonPage';
 import Discussion from './pages/Discussion';
 import Settings from './pages/Settings';
 import AdminDashboard from './pages/AdminDashboard';
+import Feedback from './pages/Feedback';
 
 // Simple Route Guard for Admin Role
 const AdminRoute = ({ children }) => {
@@ -119,6 +120,7 @@ function App() {
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/feedback" element={<Feedback />} />
             <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           </Route>
           

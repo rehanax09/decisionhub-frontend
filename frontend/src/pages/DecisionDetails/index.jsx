@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { MessageSquare, CheckCircle, ArrowLeft, Trash2, Edit3, Plus, X, BarChart2, Check } from 'lucide-react';
+import { MessageSquare, CheckCircle, ArrowLeft, Trash2, Edit3, Plus, X, BarChart2, Check, Star, Lock, Unlock } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ChartTooltip, Legend } from 'recharts';
 import api from '../../api/api';
 import { useToast } from '../../context/ToastContext';
@@ -50,6 +50,15 @@ const DecisionDetails = () => {
   const [newModalCriterion, setNewModalCriterion] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Feedback & Rating States
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [submitRating, setSubmitRating] = useState(5);
+  const [submitComment, setSubmitComment] = useState('');
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [hoveredStar, setHoveredStar] = useState(-1);
+
   // Comments state for discussion
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
@@ -71,6 +80,60 @@ const DecisionDetails = () => {
     } catch (err) {
       console.error("Failed to fetch comments:", err);
     }
+  };
+
+  const fetchFeedbacks = async () => {
+    try {
+      setFeedbackLoading(true);
+      const res = await api.get(`/api/decisions/${id}/feedback`);
+      if (res.data?.success) {
+        setFeedbacks(res.data.data || res.data || []);
+      } else {
+        setFeedbacks(res.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch feedbacks:", err);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
+
+  const handleSubmitFeedback = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (submitRating < 1 || submitRating > 5) {
+      showToast("Please select a rating between 1 and 5 stars.", "warning");
+      return;
+    }
+    setIsSubmittingFeedback(true);
+    try {
+      const payload = {
+        rating: submitRating,
+        feedbackText: submitComment.trim(),
+        comment: submitComment.trim()
+      };
+      await api.post(`/api/decisions/${id}/feedback`, payload);
+      showToast("Feedback submitted successfully.", "success");
+      setIsFeedbackModalOpen(false);
+      setSubmitComment('');
+      setSubmitRating(5);
+      await fetchFeedbacks();
+    } catch (err) {
+      console.error("Failed to submit feedback:", err);
+      showToast(err.response?.data?.message || "Failed to submit feedback.", "error");
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
+
+  // Frontend-only toggle — no backend yet
+  const handleToggleStatus = () => {
+    const newStatus = isClosed ? 'OPEN' : 'CLOSED';
+    setDecision(prev => ({ ...prev, status: newStatus }));
+    showToast(
+      `Board ${newStatus === 'CLOSED' ? 'closed' : 'reopened'} successfully.`,
+      'success'
+    );
+    setActiveTab('overview');
   };
 
   // Inline Parameter Edition States
@@ -114,6 +177,7 @@ const DecisionDetails = () => {
         setEditingValues(initialVals);
       }
       await fetchComments().catch(() => null);
+      await fetchFeedbacks().catch(() => null);
     } catch (err) {
       console.error("Failed to refresh decision details:", err);
     }
@@ -138,6 +202,10 @@ const DecisionDetails = () => {
             setVotedOptionId(Number(decisionRes.data.data.votedOptionId));
           } else {
             setVotedOptionId(null);
+          }
+          
+          if (decisionRes.data.data.status === 'CLOSED' || decisionRes.data.data.status === 'closed') {
+            fetchFeedbacks().catch(() => null);
           }
         }
 
@@ -186,6 +254,8 @@ const DecisionDetails = () => {
   useEffect(() => {
     if (activeTab === 'discussion') {
       fetchComments().catch(() => null);
+    } else if (activeTab === 'feedback') {
+      fetchFeedbacks().catch(() => null);
     }
   }, [activeTab]);
 
@@ -611,6 +681,8 @@ const DecisionDetails = () => {
       currentUser.role === 'admin'
     )
   );
+  // CLOSED = locked board, anything else (OPEN, ACTIVE, etc.) = open/live
+  const isClosed = decision?.status === 'CLOSED' || decision?.status === 'closed';
   const visibleOptionsEdit = (editOptions || []).map((opt, idx) => ({ opt: opt || {}, idx })).filter(x => x.opt && !x.opt.isDeleted);
 
   return (
@@ -624,14 +696,25 @@ const DecisionDetails = () => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center' }}>
               {decision.category && (
-                <span style={{ color: 'var(--neon-cyan)', fontSize: '0.9rem', background: 'rgba(0,245,255,0.1)', padding: '4px 8px', borderRadius: '4px' }}>
+                <span style={{ color: 'var(--neon-cyan)', fontSize: '0.9rem', background: 'rgba(0,245,255,0.1)', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold' }}>
                   #{decision.category}
                 </span>
               )}
-              <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', background: 'var(--chip-bg)', padding: '4px 8px', borderRadius: '4px' }}>
-                {decision.status}
+              <span style={{ 
+                color: isClosed ? 'var(--neon-pink)' : '#00FF99', 
+                fontSize: '0.85rem', 
+                background: isClosed ? 'rgba(255, 0, 255, 0.1)' : 'rgba(0, 255, 153, 0.1)', 
+                padding: '4px 10px', 
+                borderRadius: '12px',
+                fontWeight: '800',
+                border: isClosed ? '1px solid rgba(255, 0, 255, 0.25)' : '1px solid rgba(0, 255, 153, 0.25)',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                boxShadow: isClosed ? '0 0 10px rgba(255, 0, 255, 0.1)' : '0 0 10px rgba(0, 255, 153, 0.1)'
+              }}>
+                {isClosed ? '🔒 Closed' : '🟢 Open'}
               </span>
             </div>
             <h1 style={{ fontSize: '2.5rem', fontFamily: 'Outfit', margin: 0, marginBottom: '8px' }}>{decision.title}</h1>
@@ -642,6 +725,26 @@ const DecisionDetails = () => {
 
           {isOwner && (
             <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={handleToggleStatus}
+                style={{ 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  padding: '10px 20px', 
+                  fontSize: '0.9rem',
+                  borderRadius: '8px',
+                  background: isClosed ? 'rgba(0, 255, 153, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                  border: isClosed ? '1px solid rgba(0, 255, 153, 0.3)' : '1px solid var(--glass-border)',
+                  color: isClosed ? '#00FF99' : 'var(--text-primary)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                {isClosed ? <Unlock size={18} /> : <Lock size={18} />}
+                {isClosed ? 'Reopen Board' : 'Close Board'}
+              </button>
               <button
                 type="button"
                 onClick={startEdit}
@@ -788,11 +891,21 @@ const DecisionDetails = () => {
                       </div>
 
                       <button 
-                        onClick={() => handleVote(option.id)}
+                        onClick={() => !isClosed && handleVote(option.id)}
                         className={isVoted ? 'btn-primary' : 'btn-secondary'}
-                        style={{ width: '100%', marginTop: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+                        disabled={isClosed && !isVoted}
+                        style={{ 
+                          width: '100%', 
+                          marginTop: 'auto', 
+                          display: 'flex', 
+                          justifyContent: 'center', 
+                          alignItems: 'center', 
+                          gap: '8px',
+                          opacity: isClosed && !isVoted ? 0.5 : 1,
+                          cursor: isClosed && !isVoted ? 'not-allowed' : 'pointer'
+                        }}
                       >
-                        <CheckCircle size={18} /> {isVoted ? 'Voted' : 'Vote for this Option'}
+                        <CheckCircle size={18} /> {isVoted ? 'Voted' : isClosed ? 'Voting Closed' : 'Vote for this Option'}
                       </button>
                     </div>
                   );
@@ -1001,29 +1114,37 @@ const DecisionDetails = () => {
           </div>
 
           {/* Comment Form */}
-          <form onSubmit={handleAddComment} style={{ display: 'flex', gap: '12px' }}>
-            <input 
-              type="text"
-              required
-              placeholder="Add your feedback to the debate..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              style={{
-                flex: 1,
-                padding: '12px 16px',
-                borderRadius: '8px',
-                border: '1px solid var(--glass-border)',
-                background: 'var(--input-bg)',
-                color: 'var(--text-primary)',
-                outline: 'none'
-              }}
-              onFocus={(e) => e.target.style.border = '1px solid var(--neon-cyan)'}
-              onBlur={(e) => e.target.style.border = '1px solid var(--glass-border)'}
-            />
-            <button type="submit" className="btn-primary" style={{ padding: '0 24px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <MessageSquare size={16} /> Comment
-            </button>
-          </form>
+          {isClosed ? (
+            <div className="glass-panel" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255, 255, 255, 0.01)', border: '1px dashed var(--glass-border)', borderRadius: '12px' }}>
+              <p style={{ margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.95rem' }}>
+                <Lock size={16} color="var(--neon-pink)" /> Comments are locked because this decision is closed.
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleAddComment} style={{ display: 'flex', gap: '12px' }}>
+              <input 
+                type="text"
+                required
+                placeholder="Add your feedback to the debate..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--glass-border)',
+                  background: 'var(--input-bg)',
+                  color: 'var(--text-primary)',
+                  outline: 'none'
+                }}
+                onFocus={(e) => e.target.style.border = '1px solid var(--neon-cyan)'}
+                onBlur={(e) => e.target.style.border = '1px solid var(--glass-border)'}
+              />
+              <button type="submit" className="btn-primary" style={{ padding: '0 24px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <MessageSquare size={16} /> Comment
+              </button>
+            </form>
+          )}
         </div>
       )}
 
@@ -1223,6 +1344,8 @@ const DecisionDetails = () => {
 
         </div>
       )}
+
+
 
       {/* ── Inline Edit Board Page View ────────────────────────────────────────── */}
       {activeTab === 'edit board' && (
@@ -1496,6 +1619,8 @@ const DecisionDetails = () => {
         confirmText="Delete"
         type="destructive"
       />
+
+
     </div>
   );
 };

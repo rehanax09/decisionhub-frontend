@@ -16,7 +16,8 @@ import {
   ShieldAlert,
   Globe,
   AlertTriangle,
-  ArrowLeft
+  ArrowLeft,
+  MessageSquare
 } from 'lucide-react';
 
 const LogoIcon = () => (
@@ -73,6 +74,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     { id: 'boards', name: 'Decision Boards', path: '/decision-board', icon: CheckSquare },
     { id: 'communities', name: 'Communities', path: '/communities', icon: Users },
     { id: 'notifications', name: 'Notifications', path: '/notifications', icon: Bell },
+    { id: 'feedback', name: 'Feedback', path: '/feedback', icon: MessageSquare },
     { id: 'settings', name: 'Settings', path: '/settings', icon: Settings },
   ];
 
@@ -85,6 +87,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     { id: 'analytics', name: 'Analytics', path: '/admin/dashboard?tab=analytics', icon: TrendingUp },
     { id: 'moderation', name: 'Reports & Moderation', path: '/admin/dashboard?tab=moderation', icon: AlertTriangle },
     { id: 'notifications', name: 'Notifications', path: '/admin/dashboard?tab=notifications', icon: Bell },
+    { id: 'feedback', name: 'User Feedbacks', path: '/feedback', icon: MessageSquare },
     { id: 'settings', name: 'Settings', path: '/admin/dashboard?tab=settings', icon: Settings },
   ];
 
