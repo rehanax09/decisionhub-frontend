@@ -1,34 +1,259 @@
 import React, { useState, useEffect } from 'react';
-import { Star, MessageSquare, AlertCircle, FileText, CheckCircle, Trash2, Check } from 'lucide-react';
+import {
+  Star, MessageSquare, AlertCircle, FileText,
+  Trash2, Send, ShieldCheck, ChevronDown, ChevronUp, Loader2
+} from 'lucide-react';
 import api from '../../api/api';
 import { useToast } from '../../context/ToastContext';
 
+/* ─── Helpers ─────────────────────────────────────────────────────── */
+const getCategoryColor = (cat) => {
+  const map = {
+    Bug:        'var(--neon-pink)',
+    Suggestion: 'var(--neon-cyan)',
+    Question:   'var(--accent-purple)',
+    General:    'var(--success)',
+  };
+  return map[cat] || 'var(--success)';
+};
+
+const StarRow = ({ rating, size = 14 }) => (
+  <div style={{ display: 'flex', gap: '3px' }}>
+    {[1, 2, 3, 4, 5].map(i => (
+      <Star key={i} size={size} style={{
+        color:  i <= rating ? '#FFD700' : 'rgba(255,255,255,0.12)',
+        fill:   i <= rating ? '#FFD700' : 'transparent',
+        filter: i <= rating ? 'drop-shadow(0 0 4px rgba(255,215,0,0.4))' : 'none',
+      }} />
+    ))}
+  </div>
+);
+
+/* ─── Feedback Card Component ─────────────────────────────────────── */
+const FeedbackCard = ({
+  f, isAdmin,
+  replyDraft, onDraftChange,
+  replyOpen, onToggleReply,
+  onPostReply, onDeleteReply, onDeleteFeedback,
+}) => {
+  const catColor = getCategoryColor(f.category || 'General');
+
+  return (
+    <div
+      className="glass-panel"
+      style={{
+        padding: '24px',
+        borderRadius: '16px',
+        background: 'rgba(18,18,18,0.55)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '14px',
+        border: f.adminReply
+          ? '1px solid rgba(0,245,255,0.22)'
+          : '1px solid rgba(255,255,255,0.05)',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,245,255,0.05)'; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)';  e.currentTarget.style.boxShadow = 'none'; }}
+    >
+      {/* Top Header Row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{
+          width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
+          background: 'linear-gradient(135deg, var(--neon-cyan), var(--accent-purple))',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontWeight: 'bold', fontSize: '0.9rem', color: '#000',
+        }}>
+          {(f.username || 'A')[0].toUpperCase()}
+        </div>
+
+        <span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold', fontSize: '0.95rem' }}>
+          @{f.username || f.user?.username || 'anonymous'}
+        </span>
+
+        <span style={{
+          padding: '3px 10px', borderRadius: '12px', fontSize: '0.72rem',
+          fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px',
+          color: catColor, background: `${catColor}15`, border: `1px solid ${catColor}30`,
+        }}>
+          {f.category || 'General'}
+        </span>
+
+        <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginLeft: 'auto' }}>
+          {f.createdAt ? new Date(f.createdAt).toLocaleString() : 'Just now'}
+        </span>
+
+        {/* Delete Feedback Button (Owner or Admin) */}
+        {onDeleteFeedback && (
+          <button
+            onClick={() => onDeleteFeedback(f.id)}
+            title="Delete feedback"
+            style={{
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: 'var(--neon-pink)', opacity: 0.6, transition: 'opacity 0.2s', padding: '2px',
+            }}
+            onMouseEnter={e => e.currentTarget.style.opacity = 1}
+            onMouseLeave={e => e.currentTarget.style.opacity = 0.6}
+          >
+            <Trash2 size={15} />
+          </button>
+        )}
+      </div>
+
+      {/* Rating */}
+      <StarRow rating={f.rating || 0} />
+
+      {/* Message */}
+      <p style={{
+        margin: 0, color: 'var(--text-primary)',
+        fontSize: '0.94rem', lineHeight: '1.65', whiteSpace: 'pre-wrap',
+      }}>
+        {f.comment || f.feedbackText || 'No comment provided.'}
+      </p>
+
+      {/* Admin Reply Display */}
+      {f.adminReply && (
+        <div style={{
+          background: 'rgba(0,245,255,0.04)',
+          border: '1px solid rgba(0,245,255,0.2)',
+          borderRadius: '12px', padding: '14px 18px',
+          display: 'flex', flexDirection: 'column', gap: '8px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldCheck size={15} color="var(--neon-cyan)" />
+              <span style={{
+                color: 'var(--neon-cyan)', fontSize: '0.8rem',
+                fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px',
+              }}>
+                Admin Reply
+              </span>
+              {f.adminRepliedAt && (
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.74rem' }}>
+                  · {new Date(f.adminRepliedAt).toLocaleString()}
+                </span>
+              )}
+            </div>
+            {isAdmin && (
+              <button
+                onClick={() => onDeleteReply(f.id)}
+                title="Remove reply"
+                style={{
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  color: 'var(--neon-pink)', opacity: 0.6, transition: 'opacity 0.2s', padding: '2px',
+                  display: 'flex', alignItems: 'center',
+                }}
+                onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                onMouseLeave={e => e.currentTarget.style.opacity = 0.6}
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
+          <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.92rem', lineHeight: '1.6' }}>
+            {f.adminReply}
+          </p>
+        </div>
+      )}
+
+      {/* Admin Reply Controls */}
+      {isAdmin && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <button
+            onClick={() => onToggleReply(f.id)}
+            style={{
+              alignSelf: 'flex-start',
+              background: 'transparent',
+              border: '1px solid rgba(0,245,255,0.25)',
+              borderRadius: '8px',
+              color: 'var(--neon-cyan)',
+              cursor: 'pointer',
+              padding: '7px 14px',
+              fontSize: '0.84rem',
+              display: 'flex', alignItems: 'center', gap: '6px',
+              transition: 'background 0.2s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,245,255,0.08)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <MessageSquare size={14} />
+            {f.adminReply
+              ? (replyOpen ? 'Cancel Edit' : 'Edit Reply')
+              : (replyOpen ? 'Cancel'      : 'Reply to User')}
+            {replyOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </button>
+
+          {replyOpen && (
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+              <textarea
+                rows={3}
+                placeholder="Write your reply to this user…"
+                value={replyDraft}
+                onChange={e => onDraftChange(f.id, e.target.value)}
+                className="input-premium"
+                style={{
+                  flex: 1, resize: 'none',
+                  padding: '12px 14px', borderRadius: '10px',
+                  fontSize: '0.9rem', lineHeight: '1.5',
+                }}
+              />
+              <button
+                onClick={() => onPostReply(f.id)}
+                className="btn-primary"
+                style={{
+                  padding: '10px 18px', borderRadius: '10px',
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  fontSize: '0.85rem', whiteSpace: 'nowrap',
+                  boxShadow: 'var(--glow-cyan)',
+                }}
+              >
+                <Send size={14} /> Post Reply
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ─── Main Page Component ─────────────────────────────────────────── */
 const Feedback = () => {
   const { showToast } = useToast();
-  const [feedbacks, setFeedbacks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [rating, setRating] = useState(5);
-  const [hoveredStar, setHoveredStar] = useState(-1);
-  const [category, setCategory] = useState('General');
-  const [comment, setComment] = useState('');
   const role = localStorage.getItem('role') || 'user';
   const isAdmin = role === 'admin';
 
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
+
   const [activeSubTab, setActiveSubTab] = useState(isAdmin ? 'all' : 'submit');
 
+  // Submit form state
+  const [rating, setRating]           = useState(5);
+  const [hoveredStar, setHoveredStar] = useState(-1);
+  const [category, setCategory]       = useState('General');
+  const [comment, setComment]         = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Admin reply state
+  const [replyDrafts, setReplyDrafts] = useState({});
+  const [replyOpen, setReplyOpen]     = useState({});
+
+  /* ── 1. Fetch Feedbacks from Backend API ── */
   const fetchFeedbacks = async () => {
     try {
       setLoading(true);
+      setError(null);
       const res = await api.get('/api/feedback');
       if (res.data?.success) {
-        setFeedbacks(res.data.data || res.data || []);
+        setFeedbacks(res.data.data || []);
       } else {
         setFeedbacks(res.data || []);
       }
     } catch (err) {
-      console.error('Failed to fetch feedback:', err);
-      // Fallback to empty if not created yet
+      console.error('Failed to fetch feedbacks:', err);
+      setError(err.response?.data?.message || 'Failed to load feedbacks from server.');
       setFeedbacks([]);
     } finally {
       setLoading(false);
@@ -39,10 +264,11 @@ const Feedback = () => {
     fetchFeedbacks();
   }, []);
 
+  /* ── 2. Submit Feedback to Backend API ── */
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!comment.trim()) {
-      showToast('Please enter your feedback comments.', 'warning');
+      showToast('Please write your feedback message.', 'warning');
       return;
     }
 
@@ -52,32 +278,77 @@ const Feedback = () => {
         rating,
         category,
         comment: comment.trim(),
-        feedbackText: comment.trim() // send both to be safe
       };
-      
       await api.post('/api/feedback', payload);
       showToast('Feedback submitted successfully to admin!', 'success');
       setComment('');
       setRating(5);
       setCategory('General');
-      
-      // Refresh list
+
+      // Refresh feedbacks list from backend
       await fetchFeedbacks();
       if (!isAdmin) {
         setActiveSubTab('history');
       }
     } catch (err) {
       console.error('Failed to submit feedback:', err);
-      showToast(err.response?.data?.message || 'Failed to submit feedback.', 'error');
+      showToast(err.response?.data?.message || 'Failed to submit feedback to backend.', 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDeleteFeedback = async (feedbackId) => {
+  /* ── 3. Toggle Admin Reply Box ── */
+  const handleToggleReply = (id) => {
+    setReplyOpen(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+    const currentFeedback = feedbacks.find(f => f.id === id);
+    if (currentFeedback && currentFeedback.adminReply && !replyDrafts[id]) {
+      setReplyDrafts(prev => ({ ...prev, [id]: currentFeedback.adminReply }));
+    }
+  };
+
+  const handleDraftChange = (id, val) =>
+    setReplyDrafts(prev => ({ ...prev, [id]: val }));
+
+  /* ── 4. Post Admin Reply to Backend API ── */
+  const handlePostReply = async (id) => {
+    const text = (replyDrafts[id] || '').trim();
+    if (!text) {
+      showToast('Reply cannot be empty.', 'warning');
+      return;
+    }
+    try {
+      await api.post(`/api/feedback/${id}/reply`, { adminReply: text });
+      showToast('Reply posted successfully!', 'success');
+      setReplyDrafts(prev => ({ ...prev, [id]: '' }));
+      setReplyOpen(prev => ({ ...prev, [id]: false }));
+      await fetchFeedbacks();
+    } catch (err) {
+      console.error('Failed to post reply:', err);
+      showToast(err.response?.data?.message || 'Failed to post reply to backend.', 'error');
+    }
+  };
+
+  /* ── 5. Delete Admin Reply from Backend API ── */
+  const handleDeleteReply = async (id) => {
+    try {
+      await api.delete(`/api/feedback/${id}/reply`);
+      showToast('Reply removed successfully.', 'success');
+      await fetchFeedbacks();
+    } catch (err) {
+      console.error('Failed to delete reply:', err);
+      showToast(err.response?.data?.message || 'Failed to delete reply.', 'error');
+    }
+  };
+
+  /* ── 6. Delete Feedback Entry from Backend API ── */
+  const handleDeleteFeedback = async (id) => {
     if (!window.confirm('Are you sure you want to delete this feedback?')) return;
     try {
-      await api.delete(`/api/feedback/${feedbackId}`);
+      await api.delete(`/api/feedback/${id}`);
       showToast('Feedback deleted successfully.', 'success');
       await fetchFeedbacks();
     } catch (err) {
@@ -86,130 +357,91 @@ const Feedback = () => {
     }
   };
 
-  const getCategoryColor = (cat) => {
-    switch (cat) {
-      case 'Bug':
-        return 'var(--neon-pink)';
-      case 'Suggestion':
-        return 'var(--neon-cyan)';
-      case 'Question':
-        return 'var(--accent-purple)';
-      default:
-        return 'var(--success)';
-    }
-  };
+  const avgRating = feedbacks.length
+    ? (feedbacks.reduce((s, f) => s + (f.rating || 0), 0) / feedbacks.length).toFixed(1)
+    : '0.0';
+
+  const repliedCount = feedbacks.filter(f => f.adminReply).length;
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
-      
-      {/* Custom Styles */}
+
       <style>{`
-        .feedback-tab-btn {
-          background: transparent;
-          border: none;
-          color: var(--text-secondary);
-          padding: 12px 0;
-          font-size: 1.1rem;
-          font-family: 'Outfit', sans-serif;
-          border-bottom: 2px solid transparent;
-          cursor: pointer;
-          transition: all 0.3s ease;
+        .fb-tab {
+          background: transparent; border: none; color: var(--text-secondary);
+          padding: 12px 0; font-size: 1.05rem; font-family: 'Outfit', sans-serif;
+          border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.3s;
         }
-        .feedback-tab-btn.active {
-          color: var(--neon-cyan);
-          border-bottom: 2px solid var(--neon-cyan);
-          font-weight: 600;
-        }
-        .feedback-card-glow {
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
-        }
-        .feedback-card-glow:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(0, 245, 255, 0.02);
-          border-color: rgba(0, 245, 255, 0.1);
-        }
-        .cat-chip {
-          padding: 4px 10px;
-          border-radius: 12px;
-          font-size: 0.78rem;
-          font-weight: bold;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
+        .fb-tab.active {
+          color: var(--neon-cyan); border-bottom: 2px solid var(--neon-cyan); font-weight: 600;
         }
       `}</style>
 
       {/* Header */}
-      <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ fontSize: '2.5rem', fontFamily: 'Outfit', margin: '0 0 8px 0', textShadow: '0 0 10px rgba(0, 245, 255, 0.2)' }} className="text-gradient">
+      <div style={{ marginBottom: '28px' }}>
+        <h1 className="text-gradient" style={{ fontSize: '2.4rem', fontFamily: 'Outfit', margin: '0 0 8px 0' }}>
           System Feedback
         </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', margin: 0 }}>
-          {isAdmin 
-            ? 'Monitor and manage user feedback, bug reports, and suggestions.' 
-            : 'Help us improve DecisionHub. Share your thoughts, report bugs, or suggest features.'
-          }
+        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+          {isAdmin
+            ? 'Review user feedback submissions and reply directly to users.'
+            : 'Share your thoughts, report bugs, or suggest new features.'}
         </p>
       </div>
 
-      {/* Sub Tabs */}
-      <div style={{ display: 'flex', gap: '24px', borderBottom: '1px solid var(--glass-border)', marginBottom: '30px' }}>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '28px', borderBottom: '1px solid var(--glass-border)', marginBottom: '28px' }}>
         {!isAdmin && (
           <>
-            <button 
-              className={`feedback-tab-btn ${activeSubTab === 'submit' ? 'active' : ''}`}
+            <button
+              className={`fb-tab ${activeSubTab === 'submit' ? 'active' : ''}`}
               onClick={() => setActiveSubTab('submit')}
             >
               Submit Feedback
             </button>
-            <button 
-              className={`feedback-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+            <button
+              className={`fb-tab ${activeSubTab === 'history' ? 'active' : ''}`}
               onClick={() => setActiveSubTab('history')}
             >
-              My Submissions ({feedbacks.length})
+              My History ({feedbacks.length})
             </button>
           </>
         )}
         {isAdmin && (
-          <button 
-            className={`feedback-tab-btn ${activeSubTab === 'all' ? 'active' : ''}`}
+          <button
+            className={`fb-tab ${activeSubTab === 'all' ? 'active' : ''}`}
             onClick={() => setActiveSubTab('all')}
           >
-            All Feedback Feed ({feedbacks.length})
+            All Submissions ({feedbacks.length})
           </button>
         )}
       </div>
 
-      {/* Tab Contents */}
+      {/* ══ Submit Tab ══ */}
       {activeSubTab === 'submit' && (
-        <div className="glass-panel" style={{ padding: '40px', borderRadius: '24px', background: 'rgba(20, 20, 20, 0.6)' }}>
+        <div className="glass-panel" style={{ padding: '40px', borderRadius: '24px', background: 'rgba(18,18,18,0.6)' }}>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            
-            {/* Rating Selector */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
-              <label style={{ fontSize: '1.1rem', color: 'var(--text-primary)', fontFamily: 'Outfit', fontWeight: '600' }}>
+
+            {/* Rating Stars */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '1.05rem', fontFamily: 'Outfit', fontWeight: '600', color: 'var(--text-primary)' }}>
                 How would you rate your experience?
               </label>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '0 0 10px 0' }}>
-                Tap a star to rate from 1 to 5.
-              </p>
-              
-              <div style={{ display: 'flex', gap: '12px' }}>
-                {[1, 2, 3, 4, 5].map((starIndex) => {
-                  const isFilled = hoveredStar !== -1 ? starIndex <= hoveredStar : starIndex <= rating;
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>Tap a star to rate from 1 to 5.</p>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
+                {[1, 2, 3, 4, 5].map(s => {
+                  const filled = hoveredStar !== -1 ? s <= hoveredStar : s <= rating;
                   return (
-                    <Star
-                      key={starIndex}
-                      size={36}
-                      onClick={() => setRating(starIndex)}
-                      onMouseEnter={() => setHoveredStar(starIndex)}
+                    <Star key={s} size={36}
+                      onClick={() => setRating(s)}
+                      onMouseEnter={() => setHoveredStar(s)}
                       onMouseLeave={() => setHoveredStar(-1)}
                       style={{
                         cursor: 'pointer',
-                        color: isFilled ? '#FFD700' : 'var(--text-secondary)',
-                        fill: isFilled ? '#FFD700' : 'transparent',
-                        filter: isFilled ? 'drop-shadow(0 0 8px rgba(255, 215, 0, 0.5))' : 'none',
-                        transition: 'all 0.15s ease'
+                        color:  filled ? '#FFD700' : 'var(--text-secondary)',
+                        fill:   filled ? '#FFD700' : 'transparent',
+                        filter: filled ? 'drop-shadow(0 0 8px rgba(255,215,0,0.5))' : 'none',
+                        transition: 'all 0.15s ease',
                       }}
                     />
                   );
@@ -217,32 +449,25 @@ const Feedback = () => {
               </div>
             </div>
 
-            <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '10px 0' }} />
+            <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)' }} />
 
             {/* Category selection */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontSize: '0.95rem', color: 'var(--text-primary)', fontWeight: '600' }}>Category</label>
+              <label style={{ fontSize: '0.95rem', fontWeight: '600', color: 'var(--text-primary)' }}>Category</label>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                {['General', 'Bug', 'Suggestion', 'Question'].map((cat) => {
-                  const isSelected = category === cat;
-                  const catColor = getCategoryColor(cat);
+                {['General', 'Bug', 'Suggestion', 'Question'].map(cat => {
+                  const sel = category === cat;
+                  const col = getCategoryColor(cat);
                   return (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setCategory(cat)}
-                      style={{
-                        padding: '10px 20px',
-                        borderRadius: '20px',
-                        border: isSelected ? `1px solid ${catColor}` : '1px solid var(--glass-border)',
-                        background: isSelected ? `${catColor}15` : 'rgba(255, 255, 255, 0.01)',
-                        color: isSelected ? catColor : 'var(--text-secondary)',
-                        fontWeight: isSelected ? 'bold' : 'normal',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        boxShadow: isSelected ? `0 0 8px ${catColor}30` : 'none'
-                      }}
-                    >
+                    <button key={cat} type="button" onClick={() => setCategory(cat)} style={{
+                      padding: '10px 20px', borderRadius: '20px', cursor: 'pointer',
+                      border:     sel ? `1px solid ${col}` : '1px solid var(--glass-border)',
+                      background: sel ? `${col}15` : 'rgba(255,255,255,0.01)',
+                      color:      sel ? col : 'var(--text-secondary)',
+                      fontWeight: sel ? 'bold' : 'normal',
+                      boxShadow:  sel ? `0 0 8px ${col}30` : 'none',
+                      transition: 'all 0.2s',
+                    }}>
                       {cat}
                     </button>
                   );
@@ -250,211 +475,129 @@ const Feedback = () => {
               </div>
             </div>
 
-            {/* Comment Message */}
+            {/* Comment area */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontSize: '0.95rem', color: 'var(--text-primary)', fontWeight: '600' }}>Your Message</label>
+              <label style={{ fontSize: '0.95rem', fontWeight: '600', color: 'var(--text-primary)' }}>Your Message</label>
               <textarea
-                required
-                rows={5}
-                placeholder="Share your thoughts, describe a bug in detail, or write feature suggestions..."
+                required rows={5}
+                placeholder="Describe your thoughts, bug details, or feature idea…"
                 value={comment}
-                onChange={(e) => setComment(e.target.value)}
+                onChange={e => setComment(e.target.value)}
                 className="input-premium"
                 style={{ resize: 'none', padding: '16px', borderRadius: '12px', fontSize: '0.95rem' }}
               />
             </div>
 
             <button
-              type="submit"
-              className="btn-primary"
-              disabled={isSubmitting}
-              style={{ padding: '14px', fontSize: '1rem', marginTop: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', boxShadow: 'var(--glow-cyan)' }}
+              type="submit" className="btn-primary" disabled={isSubmitting}
+              style={{
+                padding: '14px', fontSize: '1rem',
+                display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px',
+                boxShadow: 'var(--glow-cyan)',
+              }}
             >
-              <MessageSquare size={18} />
-              {isSubmitting ? 'Sending feedback...' : 'Send Feedback to Admin'}
+              {isSubmitting ? <Loader2 size={18} className="spin" /> : <MessageSquare size={18} />}
+              {isSubmitting ? 'Sending to Server…' : 'Send Feedback to Admin'}
             </button>
-
           </form>
         </div>
       )}
 
-      {/* History Sub-tab */}
+      {/* ══ User History Tab ══ */}
       {activeSubTab === 'history' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {loading ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
-              <p>Loading your feedback history...</p>
+            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
+              <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', marginBottom: '12px', color: 'var(--neon-cyan)' }} />
+              <p style={{ margin: 0 }}>Loading your feedback history from server...</p>
+            </div>
+          ) : error ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--neon-pink)' }} className="glass-panel">
+              <AlertCircle size={36} style={{ marginBottom: '12px' }} />
+              <p style={{ margin: 0 }}>{error}</p>
             </div>
           ) : feedbacks.length === 0 ? (
-            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)', borderRadius: '16px', border: '1px dashed var(--glass-border)', background: 'rgba(255,255,255,0.01)' }}>
-              <FileText size={40} style={{ color: 'var(--text-secondary)', marginBottom: '16px', opacity: 0.5 }} />
-              <p style={{ margin: 0, fontSize: '0.98rem', fontStyle: 'italic' }}>
-                You have not submitted any feedbacks yet.
-              </p>
+            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)', border: '1px dashed var(--glass-border)', borderRadius: '16px' }}>
+              <FileText size={40} style={{ opacity: 0.4, marginBottom: '16px' }} />
+              <p style={{ margin: 0, fontStyle: 'italic' }}>You haven't submitted any feedback yet.</p>
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {feedbacks.map((f, idx) => {
-                const catColor = getCategoryColor(f.category || 'General');
-                return (
-                  <div 
-                    key={f.id || idx} 
-                    className="glass-panel feedback-card-glow" 
-                    style={{ padding: '24px', borderRadius: '16px', background: 'rgba(20, 20, 20, 0.45)', display: 'flex', flexDirection: 'column', gap: '12px' }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="cat-chip" style={{ color: catColor, background: `${catColor}15`, border: `1px solid ${catColor}30` }}>
-                        {f.category || 'General'}
-                      </span>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                        {f.createdAt ? new Date(f.createdAt).toLocaleString() : 'Just now'}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      {[1, 2, 3, 4, 5].map(sIdx => {
-                        const isFilled = sIdx <= (f.rating || 0);
-                        return (
-                          <Star 
-                            key={sIdx} 
-                            size={14} 
-                            style={{ 
-                              color: isFilled ? '#FFD700' : 'rgba(255,255,255,0.08)', 
-                              fill: isFilled ? '#FFD700' : 'transparent',
-                              filter: isFilled ? 'drop-shadow(0 0 3px rgba(255, 215, 0, 0.3))' : 'none'
-                            }} 
-                          />
-                        );
-                      })}
-                    </div>
-
-                    <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.95rem', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
-                      {f.feedbackText || f.comment || 'No comment provided.'}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          ) : feedbacks.map(f => (
+            <FeedbackCard
+              key={f.id}
+              f={f}
+              isAdmin={false}
+              replyDraft={replyDrafts[f.id] || ''}
+              onDraftChange={handleDraftChange}
+              replyOpen={!!replyOpen[f.id]}
+              onToggleReply={handleToggleReply}
+              onPostReply={handlePostReply}
+              onDeleteReply={handleDeleteReply}
+              onDeleteFeedback={handleDeleteFeedback}
+            />
+          ))}
         </div>
       )}
 
-      {/* Admin View All Feedbacks Sub-tab */}
+      {/* ══ Admin All Submissions Tab ══ */}
       {activeSubTab === 'all' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
-          {/* Average Rating Summary Card */}
-          {feedbacks.length > 0 && (() => {
-            const avgRating = (feedbacks.reduce((sum, f) => sum + (f.rating || 0), 0) / feedbacks.length).toFixed(1);
-            return (
-              <div className="glass-panel" style={{ padding: '24px 30px', borderRadius: '16px', background: 'rgba(20, 20, 20, 0.7)', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' }}>
-                  🏆
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>
-                    Average Application Rating
-                  </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--text-primary)', fontFamily: 'Outfit', lineHeight: 1 }}>
-                      {avgRating} <span style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>/ 5.0</span>
-                    </span>
-                    <div style={{ display: 'flex', gap: '3px' }}>
-                      {[1, 2, 3, 4, 5].map(sIdx => {
-                        const isFilled = sIdx <= Math.round(Number(avgRating));
-                        return (
-                          <Star 
-                            key={sIdx} 
-                            size={16} 
-                            style={{ 
-                              color: isFilled ? '#FFD700' : 'rgba(255,255,255,0.1)', 
-                              fill: isFilled ? '#FFD700' : 'transparent',
-                              filter: isFilled ? 'drop-shadow(0 0 4px rgba(255, 215, 0, 0.4))' : 'none'
-                            }} 
-                          />
-                        );
-                      })}
-                    </div>
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                      • ({feedbacks.length} submissions)
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
 
+          {/* Summary Bar */}
+          <div className="glass-panel" style={{
+            padding: '20px 28px', borderRadius: '16px',
+            background: 'rgba(18,18,18,0.7)', border: '1px solid rgba(255,255,255,0.05)',
+            display: 'flex', alignItems: 'center', gap: '20px',
+          }}>
+            <div style={{
+              width: '48px', height: '48px', borderRadius: '50%', fontSize: '1.4rem',
+              background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>🏆</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>
+                Average Rating
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '1.8rem', fontWeight: '800', fontFamily: 'Outfit', lineHeight: 1, color: 'var(--text-primary)' }}>
+                  {avgRating} <span style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>/ 5.0</span>
+                </span>
+                <StarRow rating={Math.round(Number(avgRating))} size={16} />
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>· {feedbacks.length} submissions</span>
+                <span style={{ color: 'var(--neon-cyan)', fontSize: '0.82rem' }}>· {repliedCount} replied</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Feedbacks list */}
           {loading ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
-              <p>Loading feedback feed...</p>
+            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
+              <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', marginBottom: '12px', color: 'var(--neon-cyan)' }} />
+              <p style={{ margin: 0 }}>Loading feedback submissions from server...</p>
+            </div>
+          ) : error ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--neon-pink)' }} className="glass-panel">
+              <AlertCircle size={36} style={{ marginBottom: '12px' }} />
+              <p style={{ margin: 0 }}>{error}</p>
             </div>
           ) : feedbacks.length === 0 ? (
-            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)', borderRadius: '16px', border: '1px dashed var(--glass-border)', background: 'rgba(255,255,255,0.01)' }}>
-              <AlertCircle size={40} style={{ color: 'var(--text-secondary)', marginBottom: '16px', opacity: 0.5 }} />
-              <p style={{ margin: 0, fontSize: '0.98rem', fontStyle: 'italic' }}>
-                No feedback has been received from users yet.
-              </p>
+            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)', border: '1px dashed var(--glass-border)', borderRadius: '16px' }}>
+              <AlertCircle size={40} style={{ opacity: 0.4, marginBottom: '16px' }} />
+              <p style={{ margin: 0, fontStyle: 'italic' }}>No feedback submissions received yet.</p>
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {feedbacks.map((f, idx) => {
-                const catColor = getCategoryColor(f.category || 'General');
-                return (
-                  <div 
-                    key={f.id || idx} 
-                    className="glass-panel feedback-card-glow" 
-                    style={{ padding: '24px', borderRadius: '16px', background: 'rgba(20, 20, 20, 0.45)', display: 'flex', flexDirection: 'column', gap: '14px', position: 'relative' }}
-                  >
-                    {/* Delete button for Admin */}
-                    {f.id && (
-                      <button
-                        onClick={() => handleDeleteFeedback(f.id)}
-                        style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', color: 'var(--neon-pink)', cursor: 'pointer', opacity: 0.6, transition: 'opacity 0.2s' }}
-                        onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                        onMouseLeave={e => e.currentTarget.style.opacity = 0.6}
-                        title="Delete Feedback"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold', fontSize: '0.95rem' }}>
-                        @{f.username || f.user?.username || 'Anonymous'}
-                      </span>
-                      <span className="cat-chip" style={{ color: catColor, background: `${catColor}15`, border: `1px solid ${catColor}30`, fontSize: '0.7rem' }}>
-                        {f.category || 'General'}
-                      </span>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginLeft: 'auto', marginRight: f.id ? '24px' : '0' }}>
-                        {f.createdAt ? new Date(f.createdAt).toLocaleString() : 'Just now'}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      {[1, 2, 3, 4, 5].map(sIdx => {
-                        const isFilled = sIdx <= (f.rating || 0);
-                        return (
-                          <Star 
-                            key={sIdx} 
-                            size={14} 
-                            style={{ 
-                              color: isFilled ? '#FFD700' : 'rgba(255,255,255,0.08)', 
-                              fill: isFilled ? '#FFD700' : 'transparent',
-                              filter: isFilled ? 'drop-shadow(0 0 3px rgba(255, 215, 0, 0.3))' : 'none'
-                            }} 
-                          />
-                        );
-                      })}
-                    </div>
-
-                    <p style={{ margin: 0, color: 'var(--text-primary)', fontSize: '0.94rem', lineHeight: '1.6', whiteSpace: 'pre-wrap', paddingRight: '15px' }}>
-                      {f.feedbackText || f.comment || 'No comment provided.'}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          ) : feedbacks.map(f => (
+            <FeedbackCard
+              key={f.id}
+              f={f}
+              isAdmin={true}
+              replyDraft={replyDrafts[f.id] || ''}
+              onDraftChange={handleDraftChange}
+              replyOpen={!!replyOpen[f.id]}
+              onToggleReply={handleToggleReply}
+              onPostReply={handlePostReply}
+              onDeleteReply={handleDeleteReply}
+              onDeleteFeedback={handleDeleteFeedback}
+            />
+          ))}
         </div>
       )}
 
