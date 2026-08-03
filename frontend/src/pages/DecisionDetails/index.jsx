@@ -25,6 +25,174 @@ const mergeCriteriaAndValues = (fetchedDecision) => {
   return fetchedDecision;
 };
 
+const CommentItem = ({
+  comment,
+  depth = 0,
+  currentUser,
+  editingCommentId,
+  setEditingCommentId,
+  editCommentText,
+  setEditCommentText,
+  handleEditComment,
+  handleDeleteCommentClick,
+  activeReplyId,
+  setActiveReplyId,
+  replyText,
+  setReplyText,
+  handleAddReply
+}) => {
+  const commentId = comment.commentId || comment.id;
+  const username = comment.username || comment.author || 'Anonymous';
+  const text = comment.commentText || comment.text;
+  const createdAt = comment.createdAt || comment.time;
+  const formattedTime = createdAt ? (new Date(createdAt).toString() !== 'Invalid Date' ? new Date(createdAt).toLocaleString() : createdAt) : 'Just now';
+  const replies = comment.replies || [];
+  const isOwner = currentUser && (currentUser.username === username);
+  const isAdmin = currentUser && (currentUser.role === 'ADMIN' || localStorage.getItem('role') === 'admin');
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div style={{
+        padding: depth === 0 ? '16px' : '12px 16px',
+        borderRadius: '10px',
+        background: depth === 0 ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.005)',
+        border: depth === 0 ? '1px solid var(--glass-border)' : '1px solid rgba(255,255,255,0.05)'
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', fontSize: depth === 0 ? '0.85rem' : '0.8rem' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <span style={{ color: depth === 0 ? 'var(--neon-cyan)' : 'var(--neon-pink)', fontWeight: 'bold' }}>@{username}</span>
+            <span style={{ color: 'var(--text-secondary)' }}>{formattedTime}</span>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {isOwner && (
+              <button 
+                onClick={() => { setEditingCommentId(commentId); setEditCommentText(text); }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--neon-cyan)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                title="Edit Comment"
+              >
+                <Edit3 size={depth === 0 ? 14 : 12} />
+              </button>
+            )}
+            {(isOwner || isAdmin) && (
+              <button 
+                onClick={() => handleDeleteCommentClick(commentId)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--neon-pink)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                title="Delete Comment"
+              >
+                <Trash2 size={depth === 0 ? 14 : 12} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Content or Edit Form */}
+        {editingCommentId === commentId ? (
+          <div style={{ marginTop: '8px', marginBottom: '12px' }}>
+            <textarea
+              value={editCommentText}
+              onChange={(e) => setEditCommentText(e.target.value)}
+              className="input-premium"
+              style={{ width: '100%', minHeight: '60px', padding: '10px', borderRadius: '8px', marginBottom: '8px', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)' }}
+            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => handleEditComment(commentId)} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
+                Save
+              </button>
+              <button onClick={() => setEditingCommentId(null)} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p style={{ color: 'var(--text-primary)', margin: 0, fontSize: depth === 0 ? '0.95rem' : '0.9rem', lineHeight: '1.5', marginBottom: '12px' }}>
+            {text}
+          </p>
+        )}
+
+        {/* Reply Action Button */}
+        <button 
+          onClick={() => {
+            setActiveReplyId(activeReplyId === commentId ? null : commentId);
+            setReplyText('');
+          }}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--neon-cyan)',
+            fontSize: '0.82rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            background: 'rgba(0, 245, 255, 0.05)',
+            transition: 'background 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 245, 255, 0.1)'}
+          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 245, 255, 0.05)'}
+        >
+          <MessageSquare size={13} /> Reply
+        </button>
+
+        {/* Inline Reply Form */}
+        {activeReplyId === commentId && (
+          <form onSubmit={(e) => handleAddReply(e, commentId)} style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+            <input 
+              type="text"
+              required
+              placeholder={`Replying to @${username}...`}
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: '1px solid var(--glass-border)',
+                background: 'var(--input-bg)',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                fontSize: '0.9rem'
+              }}
+              onFocus={(e) => e.target.style.border = '1px solid var(--neon-cyan)'}
+              onBlur={(e) => e.target.style.border = '1px solid var(--glass-border)'}
+            />
+            <button type="submit" className="btn-primary" style={{ padding: '0 16px', fontSize: '0.85rem' }}>
+              Reply
+            </button>
+          </form>
+        )}
+      </div>
+
+      {/* Indented Child Replies */}
+      {replies && replies.length > 0 && (
+        <div style={{ paddingLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px', borderLeft: '2px solid var(--glass-border)' }}>
+          {replies.map(reply => (
+            <CommentItem
+              key={reply.commentId || reply.id}
+              comment={reply}
+              depth={depth + 1}
+              currentUser={currentUser}
+              editingCommentId={editingCommentId}
+              setEditingCommentId={setEditingCommentId}
+              editCommentText={editCommentText}
+              setEditCommentText={setEditCommentText}
+              handleEditComment={handleEditComment}
+              handleDeleteCommentClick={handleDeleteCommentClick}
+              activeReplyId={activeReplyId}
+              setActiveReplyId={setActiveReplyId}
+              replyText={replyText}
+              setReplyText={setReplyText}
+              handleAddReply={handleAddReply}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const DecisionDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -69,13 +237,11 @@ const DecisionDetails = () => {
     try {
       const res = await api.get(`/api/decisions/${id}/comments`);
       if (res.data?.success && Array.isArray(res.data.data)) {
-        setComments(res.data.data.map(c => ({
-          id: c.commentId,
-          author: c.username || 'Anonymous',
-          text: c.commentText,
-          time: c.createdAt ? new Date(c.createdAt).toLocaleString() : 'Just now',
-          replies: c.replies || []
-        })));
+        setComments(res.data.data);
+      } else if (Array.isArray(res.data)) {
+        setComments(res.data);
+      } else {
+        setComments([]);
       }
     } catch (err) {
       console.error("Failed to fetch comments:", err);
@@ -125,15 +291,23 @@ const DecisionDetails = () => {
     }
   };
 
-  // Frontend-only toggle — no backend yet
-  const handleToggleStatus = () => {
+  // Toggle Board Status (OPEN <-> CLOSED) via Backend API
+  const handleToggleStatus = async () => {
     const newStatus = isClosed ? 'OPEN' : 'CLOSED';
-    setDecision(prev => ({ ...prev, status: newStatus }));
-    showToast(
-      `Board ${newStatus === 'CLOSED' ? 'closed' : 'reopened'} successfully.`,
-      'success'
-    );
-    setActiveTab('overview');
+    try {
+      const res = await api.patch(`/api/decisions/${id}/status`, { status: newStatus });
+      if (res.data?.success || res.data?.data) {
+        setDecision(prev => ({ ...prev, status: newStatus }));
+        showToast(
+          `Board ${newStatus === 'CLOSED' ? 'closed' : 'reopened'} successfully.`,
+          'success'
+        );
+        setActiveTab('overview');
+      }
+    } catch (err) {
+      console.error("Failed to update board status:", err);
+      showToast(err.response?.data?.message || "Failed to update board status.", "error");
+    }
   };
 
   // Inline Parameter Edition States
@@ -254,8 +428,6 @@ const DecisionDetails = () => {
   useEffect(() => {
     if (activeTab === 'discussion') {
       fetchComments().catch(() => null);
-    } else if (activeTab === 'feedback') {
-      fetchFeedbacks().catch(() => null);
     }
   }, [activeTab]);
 
@@ -924,193 +1096,29 @@ const DecisionDetails = () => {
           
           {/* Discussion feed */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '30px' }}>
-            {comments.map(comment => (
-              <div key={comment.id} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                
-                {/* Main Comment */}
-                <div style={{ padding: '16px', borderRadius: '10px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--glass-border)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', fontSize: '0.85rem' }}>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold' }}>@{comment.author}</span>
-                      <span style={{ color: 'var(--text-secondary)' }}>{comment.time}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      {currentUser && currentUser.username === comment.author && (
-                        <button 
-                          onClick={() => {
-                            setEditingCommentId(comment.id);
-                            setEditCommentText(comment.text);
-                          }}
-                          style={{ background: 'transparent', border: 'none', color: 'var(--neon-cyan)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
-                          title="Edit Comment"
-                        >
-                          <Edit3 size={14} />
-                        </button>
-                      )}
-                      {currentUser && (currentUser.username === comment.author || currentUser.role === 'ADMIN' || localStorage.getItem('role') === 'admin') && (
-                        <button 
-                          onClick={() => handleDeleteCommentClick(comment.id)}
-                          style={{ background: 'transparent', border: 'none', color: 'var(--neon-pink)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
-                          title="Delete Comment"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {editingCommentId === comment.id ? (
-                    <div style={{ marginTop: '8px', marginBottom: '12px' }}>
-                      <textarea
-                        value={editCommentText}
-                        onChange={(e) => setEditCommentText(e.target.value)}
-                        className="input-premium"
-                        style={{ width: '100%', minHeight: '60px', padding: '10px', borderRadius: '8px', marginBottom: '8px', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)' }}
-                      />
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button 
-                          onClick={() => handleEditComment(comment.id)} 
-                          className="btn-primary" 
-                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                        >
-                          Save
-                        </button>
-                        <button 
-                          onClick={() => setEditingCommentId(null)} 
-                          className="btn-secondary" 
-                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p style={{ color: 'var(--text-primary)', margin: 0, fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '12px' }}>{comment.text}</p>
-                  )}
-                  
-                  {/* Reply Action Button */}
-                  <button 
-                    onClick={() => {
-                      setActiveReplyId(activeReplyId === comment.id ? null : comment.id);
-                      setReplyText('');
-                    }}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--neon-cyan)',
-                      fontSize: '0.85rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      background: 'rgba(0, 245, 255, 0.05)',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 245, 255, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 245, 255, 0.05)'}
-                  >
-                    <MessageSquare size={14} /> Reply
-                  </button>
-
-                  {/* Inline Reply Form */}
-                  {activeReplyId === comment.id && (
-                    <form onSubmit={(e) => handleAddReply(e, comment.id)} style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-                      <input 
-                        type="text"
-                        required
-                        placeholder="Write a reply..."
-                        value={replyText}
-                        onChange={(e) => setReplyText(e.target.value)}
-                        style={{
-                          flex: 1,
-                          padding: '10px 14px',
-                          borderRadius: '8px',
-                          border: '1px solid var(--glass-border)',
-                          background: 'var(--input-bg)',
-                          color: 'var(--text-primary)',
-                          outline: 'none',
-                          fontSize: '0.9rem'
-                        }}
-                        onFocus={(e) => e.target.style.border = '1px solid var(--neon-cyan)'}
-                        onBlur={(e) => e.target.style.border = '1px solid var(--glass-border)'}
-                      />
-                      <button type="submit" className="btn-primary" style={{ padding: '0 16px', fontSize: '0.85rem' }}>
-                        Reply
-                      </button>
-                    </form>
-                  )}
-                </div>
-
-                {/* Indented Replies List */}
-                {comment.replies && comment.replies.length > 0 && (
-                  <div style={{ paddingLeft: '32px', display: 'flex', flexDirection: 'column', gap: '10px', borderLeft: '2px solid var(--glass-border)' }}>
-                    {comment.replies.map(reply => (
-                      <div key={reply.commentId} style={{ padding: '12px 16px', borderRadius: '10px', background: 'rgba(255,255,255,0.005)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', fontSize: '0.8rem' }}>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <span style={{ color: 'var(--neon-pink)', fontWeight: 'bold' }}>@{reply.username || 'Anonymous'}</span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{reply.createdAt ? new Date(reply.createdAt).toLocaleString() : 'Just now'}</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            {currentUser && currentUser.username === reply.username && (
-                              <button 
-                                onClick={() => {
-                                  setEditingCommentId(reply.commentId);
-                                  setEditCommentText(reply.commentText);
-                                }}
-                                style={{ background: 'transparent', border: 'none', color: 'var(--neon-cyan)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
-                                title="Edit Reply"
-                              >
-                                <Edit3 size={12} />
-                              </button>
-                            )}
-                            {currentUser && (currentUser.username === reply.username || currentUser.role === 'ADMIN' || localStorage.getItem('role') === 'admin') && (
-                              <button 
-                                onClick={() => handleDeleteCommentClick(reply.commentId)}
-                                style={{ background: 'transparent', border: 'none', color: 'var(--neon-pink)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
-                                title="Delete Reply"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        {editingCommentId === reply.commentId ? (
-                          <div style={{ marginTop: '8px', marginBottom: '12px' }}>
-                            <textarea
-                              value={editCommentText}
-                              onChange={(e) => setEditCommentText(e.target.value)}
-                              className="input-premium"
-                              style={{ width: '100%', minHeight: '60px', padding: '10px', borderRadius: '8px', marginBottom: '8px', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)' }}
-                            />
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button 
-                                onClick={() => handleEditComment(reply.commentId)} 
-                                className="btn-primary" 
-                                style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                              >
-                                Save
-                              </button>
-                              <button 
-                                onClick={() => setEditingCommentId(null)} 
-                                className="btn-secondary" 
-                                style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <p style={{ color: 'var(--text-primary)', margin: 0, fontSize: '0.9rem', lineHeight: '1.4' }}>{reply.commentText}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-              </div>
-            ))}
+            {comments.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>No comments yet. Be the first to start the discussion!</p>
+            ) : (
+              comments.map(comment => (
+                <CommentItem
+                  key={comment.commentId || comment.id}
+                  comment={comment}
+                  depth={0}
+                  currentUser={currentUser}
+                  editingCommentId={editingCommentId}
+                  setEditingCommentId={setEditingCommentId}
+                  editCommentText={editCommentText}
+                  setEditCommentText={setEditCommentText}
+                  handleEditComment={handleEditComment}
+                  handleDeleteCommentClick={handleDeleteCommentClick}
+                  activeReplyId={activeReplyId}
+                  setActiveReplyId={setActiveReplyId}
+                  replyText={replyText}
+                  setReplyText={setReplyText}
+                  handleAddReply={handleAddReply}
+                />
+              ))
+            )}
           </div>
 
           {/* Comment Form */}

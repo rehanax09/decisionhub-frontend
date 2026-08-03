@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Users, Shield, MessageSquare, Plus, ArrowLeft, CheckCircle, X, ThumbsUp, Clock } from 'lucide-react';
+import { Users, Shield, MessageSquare, Plus, ArrowLeft, CheckCircle, X, ThumbsUp, Clock, Trash2, Edit3 } from 'lucide-react';
 import api from '../../api/api';
 import { useToast } from '../../context/ToastContext';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -12,6 +12,14 @@ const CommunityDetails = () => {
   
   const [showRemoveMemberConfirm, setShowRemoveMemberConfirm] = useState(false);
   const [memberIdToRemove, setMemberIdToRemove] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Edit Community State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('Technology');
+  const [editDescription, setEditDescription] = useState('');
+  const [isUpdatingCommunity, setIsUpdatingCommunity] = useState(false);
 
   const [community, setCommunity] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -217,6 +225,64 @@ const CommunityDetails = () => {
     }
   };
 
+  const handleConfirmDeleteCommunity = async () => {
+    setShowDeleteConfirm(false);
+    try {
+      const res = await api.delete(`/api/communities/${id}`);
+      if (res.data?.success || res.status === 200) {
+        showToast("Community deleted successfully.", "success");
+        navigate('/communities');
+      }
+    } catch (err) {
+      console.error("Failed to delete community:", err);
+      showToast(err.response?.data?.message || "Failed to delete community.", "error");
+    }
+  };
+
+  const openEditModal = () => {
+    if (community) {
+      setEditName(community.name || '');
+      setEditCategory(community.category || 'Technology');
+      setEditDescription(community.description || '');
+      setShowEditModal(true);
+    }
+  };
+
+  const handleUpdateCommunity = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!editName || !editName.trim() || !editDescription || !editDescription.trim()) {
+      showToast("Community name and description are required.", "warning");
+      return;
+    }
+
+    setIsUpdatingCommunity(true);
+    try {
+      const res = await api.put(`/api/communities/${id}`, {
+        name: editName.trim(),
+        category: editCategory,
+        description: editDescription.trim()
+      });
+
+      if (res.data?.success && res.data.data) {
+        setCommunity(res.data.data);
+      } else {
+        setCommunity(prev => ({
+          ...prev,
+          name: editName.trim(),
+          category: editCategory,
+          description: editDescription.trim()
+        }));
+      }
+      showToast("Community updated successfully!", "success");
+      setShowEditModal(false);
+    } catch (err) {
+      console.error("Failed to update community:", err);
+      showToast(err.response?.data?.message || "Failed to update community.", "error");
+    } finally {
+      setIsUpdatingCommunity(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
@@ -285,8 +351,14 @@ const CommunityDetails = () => {
             {(isModerator || isAdmin) ? (
               <>
                 <button 
+                  onClick={openEditModal}
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--neon-cyan)', background: 'rgba(0, 245, 255, 0.15)', color: 'var(--neon-cyan)', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s ease', fontFamily: "'Outfit', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  <Edit3 size={16} /> Edit Community
+                </button>
+                <button 
                   onClick={openManageRequests}
-                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--neon-cyan)', background: 'rgba(0, 245, 255, 0.1)', color: 'var(--neon-cyan)', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s ease', fontFamily: "'Outfit', sans-serif" }}
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-primary)', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s ease', fontFamily: "'Outfit', sans-serif" }}
                 >
                   Manage Invitations
                 </button>
@@ -295,6 +367,36 @@ const CommunityDetails = () => {
                   style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--neon-pink)', background: 'rgba(255, 0, 255, 0.1)', color: 'var(--neon-pink)', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s ease', fontFamily: "'Outfit', sans-serif" }}
                 >
                   View Members
+                </button>
+                <button 
+                  onClick={() => setShowDeleteConfirm(true)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid #ef4444',
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    color: '#ef4444',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    fontFamily: "'Outfit', sans-serif",
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 0 12px rgba(239, 68, 68, 0.25)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#ef4444';
+                    e.currentTarget.style.color = '#ffffff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                    e.currentTarget.style.color = '#ef4444';
+                  }}
+                >
+                  <Trash2 size={16} /> Delete Community
                 </button>
               </>
             ) : isPending ? (
@@ -575,6 +677,113 @@ const CommunityDetails = () => {
         confirmText="Remove"
         type="destructive"
       />
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="Delete Community"
+        message="Are you sure you want to delete this community? All members and community data will be permanently removed. This action cannot be undone."
+        onConfirm={handleConfirmDeleteCommunity}
+        onCancel={() => setShowDeleteConfirm(false)}
+        confirmText="Delete"
+        type="destructive"
+      />
+
+      {/* Edit Community Modal */}
+      {showEditModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.8)', backdropFilter: 'blur(8px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          zIndex: 1000, padding: '20px'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%', maxWidth: '550px', padding: '32px',
+            borderRadius: '20px', background: 'var(--panel-bg)',
+            border: '1px solid var(--neon-cyan)', position: 'relative'
+          }}>
+            <button 
+              onClick={() => setShowEditModal(false)}
+              style={{
+                position: 'absolute', top: '20px', right: '20px',
+                background: 'transparent', border: 'none', color: 'var(--text-secondary)',
+                cursor: 'pointer'
+              }}
+            >
+              <X size={20} />
+            </button>
+
+            <h2 style={{ fontSize: '1.8rem', fontFamily: 'Outfit', margin: '0 0 20px 0', color: 'var(--text-primary)' }}>
+              Edit Community
+            </h2>
+
+            <form onSubmit={handleUpdateCommunity} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                  Community Name
+                </label>
+                <input 
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="input-premium"
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                  Category
+                </label>
+                <select 
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className="input-premium"
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)' }}
+                >
+                  <option value="Technology">Technology</option>
+                  <option value="Finance">Finance</option>
+                  <option value="Career">Career</option>
+                  <option value="Travel">Travel</option>
+                  <option value="Lifestyle">Lifestyle</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                  Description
+                </label>
+                <textarea 
+                  required
+                  rows={4}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="input-premium"
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)', resize: 'vertical' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                <button 
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="btn-secondary"
+                  style={{ padding: '10px 20px' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isUpdatingCommunity}
+                  className="btn-primary"
+                  style={{ padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  {isUpdatingCommunity ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

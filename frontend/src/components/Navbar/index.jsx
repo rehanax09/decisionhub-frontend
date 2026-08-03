@@ -1,17 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Search, Bell, User, Sun, Moon } from 'lucide-react';
+import api from '../../api/api';
 
 const Navbar = ({ isDashboard, isCollapsed }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [searchQuery, setSearchQuery] = useState('');
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const res = await api.get('/api/notifications/unread-count');
+        if (res.data?.success && typeof res.data.data === 'number') {
+          setUnreadCount(res.data.data);
+        } else if (typeof res.data === 'number') {
+          setUnreadCount(res.data);
+        }
+      } catch (err) {
+        // Silently catch if unauthenticated
+      }
+    };
+    if (localStorage.getItem('token')) {
+      fetchUnreadCount();
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [location.pathname]);
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -73,8 +95,29 @@ const Navbar = ({ isDashboard, isCollapsed }) => {
               }} 
             />
           </div>
-          <Link to="/notifications" style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+          <Link to="/notifications" style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', position: 'relative' }} title="Notifications">
             <Bell size={24} />
+            {unreadCount > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: '-4px',
+                right: '-4px',
+                background: 'var(--neon-pink)',
+                color: '#fff',
+                fontSize: '0.7rem',
+                fontWeight: 'bold',
+                minWidth: '18px',
+                height: '18px',
+                padding: '0 4px',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 0 8px var(--neon-pink)'
+              }}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </Link>
           <Link to="/profile" style={{ background: 'transparent', border: 'none', color: 'var(--neon-cyan)', cursor: 'pointer' }}>
             <User size={24} />
