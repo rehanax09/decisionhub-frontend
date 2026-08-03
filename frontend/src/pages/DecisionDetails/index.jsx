@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { MessageSquare, CheckCircle, ArrowLeft, Trash2, Edit3, Plus, X, BarChart2, Check, Star, Lock, Unlock } from 'lucide-react';
+import { MessageSquare, CheckCircle, ArrowLeft, Trash2, Edit3, Plus, X, BarChart2, Check, Star, Lock, Unlock, ShieldAlert, Flag } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ChartTooltip, Legend } from 'recharts';
 import api from '../../api/api';
 import { useToast } from '../../context/ToastContext';
 import ConfirmModal from '../../components/ConfirmModal';
+import ReportModal from '../../components/ReportModal';
 
 const parseNumericValue = (str) => {
   if (!str) return null;
@@ -226,6 +227,15 @@ const DecisionDetails = () => {
   const [submitComment, setSubmitComment] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [hoveredStar, setHoveredStar] = useState(-1);
+
+  // Moderation & Report State
+  const [reportModalState, setReportModalState] = useState({
+    isOpen: false,
+    targetType: 'BOARD',
+    targetId: null,
+    targetTitle: '',
+    reportedUserId: null
+  });
 
   // Comments state for discussion
   const [comments, setComments] = useState([]);
@@ -895,46 +905,77 @@ const DecisionDetails = () => {
             </p>
           </div>
 
-          {isOwner && (
-            <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            {!isOwner && (
               <button
                 type="button"
-                onClick={handleToggleStatus}
-                style={{ 
-                  cursor: 'pointer', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  padding: '10px 20px', 
-                  fontSize: '0.9rem',
+                onClick={() => setReportModalState({
+                  isOpen: true,
+                  targetType: 'BOARD',
+                  targetId: decision.id,
+                  targetTitle: decision.title,
+                  reportedUserId: decision.userId
+                })}
+                style={{
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '9px 16px',
+                  fontSize: '0.85rem',
                   borderRadius: '8px',
-                  background: isClosed ? 'rgba(0, 255, 153, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-                  border: isClosed ? '1px solid rgba(0, 255, 153, 0.3)' : '1px solid var(--glass-border)',
-                  color: isClosed ? '#00FF99' : 'var(--text-primary)',
-                  transition: 'all 0.3s ease'
+                  background: 'rgba(255, 0, 127, 0.08)',
+                  border: '1px solid rgba(255, 0, 127, 0.3)',
+                  color: 'var(--neon-pink)',
+                  transition: 'all 0.2s ease'
                 }}
+                title="Report this board"
               >
-                {isClosed ? <Unlock size={18} /> : <Lock size={18} />}
-                {isClosed ? 'Reopen Board' : 'Close Board'}
+                <ShieldAlert size={16} /> Report Board
               </button>
-              <button
-                type="button"
-                onClick={startEdit}
-                className="btn-primary"
-                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '0.9rem' }}
-              >
-                <Edit3 size={18} /> Edit Board
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteClick}
-                className="btn-destructive"
-                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '0.9rem' }}
-              >
-                <Trash2 size={18} /> Delete Board
-              </button>
-            </div>
-          )}
+            )}
+
+            {isOwner && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleToggleStatus}
+                  style={{ 
+                    cursor: 'pointer', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px', 
+                    padding: '10px 20px', 
+                    fontSize: '0.9rem',
+                    borderRadius: '8px',
+                    background: isClosed ? 'rgba(0, 255, 153, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                    border: isClosed ? '1px solid rgba(0, 255, 153, 0.3)' : '1px solid var(--glass-border)',
+                    color: isClosed ? '#00FF99' : 'var(--text-primary)',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  {isClosed ? <Unlock size={18} /> : <Lock size={18} />}
+                  {isClosed ? 'Reopen Board' : 'Close Board'}
+                </button>
+                <button
+                  type="button"
+                  onClick={startEdit}
+                  className="btn-primary"
+                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '0.9rem' }}
+                >
+                  <Edit3 size={18} /> Edit Board
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteClick}
+                  className="btn-destructive"
+                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '0.9rem' }}
+                >
+                  <Trash2 size={18} /> Delete Board
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1626,6 +1667,18 @@ const DecisionDetails = () => {
         onCancel={() => setCommentToDelete(null)}
         confirmText="Delete"
         type="destructive"
+      />
+
+      <ReportModal
+        isOpen={reportModalState.isOpen}
+        onClose={() => setReportModalState(prev => ({ ...prev, isOpen: false }))}
+        targetType={reportModalState.targetType}
+        targetId={reportModalState.targetId}
+        targetTitle={reportModalState.targetTitle}
+        reportedUserId={reportModalState.reportedUserId}
+        onReportSubmitted={() => {
+          showToast("Report submitted to moderation team.", "success");
+        }}
       />
 
 

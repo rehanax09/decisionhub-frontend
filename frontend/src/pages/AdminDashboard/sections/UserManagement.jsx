@@ -28,19 +28,32 @@ const UserManagement = () => {
     load();
   }, []);
 
-  const patch = async (id, endpoint, localUpdate) => {
+  const patch = async (id, endpoint, payload) => {
     try {
-      const token = localStorage.getItem('token');
-      await api.patch(`/api/admin/users/${id}/${endpoint}`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      setUsers(prev => prev.map(u => u.id === id ? { ...u, ...localUpdate(u) } : u));
+      const res = await api.patch(`/api/admin/users/${id}/${endpoint}`, payload || {});
+      if (res.data?.success && res.data.data) {
+        const updatedUser = res.data.data;
+        setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updatedUser } : u));
+      } else {
+        setUsers(prev => prev.map(u => u.id === id ? { ...u, ...(payload || {}) } : u));
+      }
     } catch (err) {
       console.error(`Failed to patch ${endpoint}:`, err);
-      alert(`Could not update user ${endpoint} on server.`);
+      alert(err.response?.data?.message || `Could not update user ${endpoint} on server.`);
     }
   };
 
-  const toggleRole   = (id) => patch(id, 'role',   u => ({ role:   u.role?.toLowerCase()   === 'admin'  ? 'USER'      : 'ADMIN'     }));
-  const toggleStatus = (id) => patch(id, 'status', u => ({ status: u.status?.toLowerCase() === 'active' ? 'SUSPENDED' : 'ACTIVE'    }));
+  const toggleRole = (id) => {
+    const targetUser = users.find(u => u.id === id);
+    const newRole = targetUser?.role?.toUpperCase() === 'ADMIN' ? 'USER' : 'ADMIN';
+    patch(id, 'role', { role: newRole });
+  };
+
+  const toggleStatus = (id) => {
+    const targetUser = users.find(u => u.id === id);
+    const newStatus = targetUser?.status?.toUpperCase() === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    patch(id, 'status', { status: newStatus });
+  };
   
   const deleteUser = async (id) => {
     if (window.confirm('Delete this user permanently?')) {

@@ -66,7 +66,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
 
   const isAdminRoute = location.pathname.startsWith('/admin');
   const queryParams = new URLSearchParams(location.search);
-  const activeTab = queryParams.get('tab') || 'overview';
+  const activeTab = queryParams.get('tab') || 'analytics';
 
   const baseNavItems = [
     { id: 'dashboard', name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -79,12 +79,11 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   ];
 
   const adminNavItems = [
-    { id: 'overview', name: 'Dashboard Overview', path: '/admin/dashboard?tab=overview', icon: LayoutDashboard },
+    { id: 'analytics', name: 'Analytics & Insights', path: '/admin/dashboard?tab=analytics', icon: TrendingUp },
     { id: 'users', name: 'User Management', path: '/admin/dashboard?tab=users', icon: Users },
     { id: 'communities', name: 'Community Management', path: '/admin/dashboard?tab=communities', icon: Globe },
     { id: 'boards', name: 'Decision Board Mgmt', path: '/admin/dashboard?tab=boards', icon: CheckSquare },
     { id: 'polls', name: 'Poll Management', path: '/admin/dashboard?tab=polls', icon: BarChart2 },
-    { id: 'analytics', name: 'Analytics', path: '/admin/dashboard?tab=analytics', icon: TrendingUp },
     { id: 'moderation', name: 'Reports & Moderation', path: '/admin/dashboard?tab=moderation', icon: AlertTriangle },
     { id: 'notifications', name: 'Notifications', path: '/admin/dashboard?tab=notifications', icon: Bell },
     { id: 'feedback', name: 'User Feedbacks', path: '/feedback', icon: MessageSquare },

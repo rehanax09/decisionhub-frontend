@@ -15,7 +15,7 @@ const Dashboard = () => {
 
   React.useEffect(() => {
     if (role === 'admin') {
-      navigate('/admin/dashboard?tab=overview', { replace: true });
+      navigate('/admin/dashboard?tab=analytics', { replace: true });
     }
   }, [role, navigate]);
 

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Users, Shield, MessageSquare, Plus, ArrowLeft, CheckCircle, X, ThumbsUp, Clock, Trash2, Edit3 } from 'lucide-react';
+import { Users, Shield, MessageSquare, Plus, ArrowLeft, CheckCircle, X, ThumbsUp, Clock, Trash2, Edit3, ShieldAlert } from 'lucide-react';
 import api from '../../api/api';
 import { useToast } from '../../context/ToastContext';
 import ConfirmModal from '../../components/ConfirmModal';
+import ReportModal from '../../components/ReportModal';
 
 const CommunityDetails = () => {
   const { id } = useParams();
@@ -38,6 +39,7 @@ const CommunityDetails = () => {
 
   // Manage Members State
   const [showMembersModal, setShowMembersModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [members, setMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
 
@@ -501,6 +503,32 @@ const CommunityDetails = () => {
                 Request to Join
               </button>
             )}
+
+            {!isModerator && !isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowReportModal(true)}
+                style={{
+                  width: '100%',
+                  padding: '9px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 0, 127, 0.25)',
+                  background: 'rgba(255, 0, 127, 0.05)',
+                  color: 'var(--neon-pink)',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease',
+                  fontFamily: "'Outfit', sans-serif"
+                }}
+              >
+                <ShieldAlert size={14} /> Report Community
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -784,6 +812,18 @@ const CommunityDetails = () => {
           </div>
         </div>
       )}
+
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        targetType="COMMUNITY"
+        targetId={community?.id}
+        targetTitle={community?.name}
+        reportedUserId={community?.moderatorId}
+        onReportSubmitted={() => {
+          showToast("Community report submitted for moderation review.", "success");
+        }}
+      />
     </div>
   );
 };

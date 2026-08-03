@@ -98,8 +98,9 @@ const Notifications = () => {
       case 'MEMBER_REMOVED':
       case 'COMMUNITY_DELETED':
         return { icon: <Trash2 size={20} />, color: 'var(--neon-pink)' };
+      case 'WARNING':
       case 'MODERATOR_ACTION':
-        return { icon: <ShieldAlert size={20} />, color: 'var(--warning)' };
+        return { icon: <ShieldAlert size={20} />, color: '#ff4444' };
       default:
         return { icon: <Bell size={20} />, color: 'var(--neon-cyan)' };
     }

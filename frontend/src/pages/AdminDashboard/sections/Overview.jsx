@@ -121,19 +121,25 @@ const Overview = () => {
     }
   }, [logs]);
 
-  const triggerBroadcast = (e) => {
+  const triggerBroadcast = async (e) => {
     e.preventDefault();
     if (!bcTitle.trim() || !bcMsg.trim()) return;
-    alert(`Broadcast Sent: "${bcTitle}"`);
-    
-    // Add to terminal logs
-    const now = new Date();
-    const timeStr = now.toTimeString().split(' ')[0];
-    setLogs(prev => [...prev, { time: timeStr, type: 'SYS', text: `Global Broadcast dispatched: "${bcTitle}"` }]);
-    
-    setBcTitle('');
-    setBcMsg('');
-    setBroadcastOpen(false);
+    try {
+      await api.post('/api/admin/broadcast', { title: bcTitle, message: bcMsg, target: 'All Users' });
+      alert(`Broadcast Sent: "${bcTitle}"`);
+      
+      // Add to terminal logs
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0];
+      setLogs(prev => [...prev, { time: timeStr, type: 'SYS', text: `Global Broadcast dispatched: "${bcTitle}"` }]);
+      
+      setBcTitle('');
+      setBcMsg('');
+      setBroadcastOpen(false);
+    } catch (err) {
+      console.error("Failed to send broadcast:", err);
+      alert(err.response?.data?.message || "Failed to send broadcast.");
+    }
   };
 
   const approveCommunity = (id, name) => {
@@ -150,10 +156,34 @@ const Overview = () => {
     setLogs(prev => [...prev, { time: timeStr, type: 'SEC', text: `Rejected community: "${name}"` }]);
   };
 
-  const resolveReport = (id, title, action) => {
-    setReports(prev => prev.filter(r => r.id !== id));
-    const timeStr = new Date().toTimeString().split(' ')[0];
-    setLogs(prev => [...prev, { time: timeStr, type: 'SEC', text: `Moderation action [${action}] taken on: "${title}"` }]);
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const res = await api.get('/api/moderation/reports?status=PENDING');
+        if (res.data?.success && res.data.data) {
+          setReports(res.data.data);
+        }
+      } catch (err) {
+        console.error("Error fetching overview moderation reports:", err);
+      }
+    };
+    fetchReports();
+  }, []);
+
+  const resolveReport = async (id, title, action) => {
+    try {
+      if (action === 'DISMISS') {
+        await api.post(`/api/moderation/reports/${id}/dismiss`);
+      } else {
+        await api.post(`/api/moderation/reports/${id}/action`, { action: action });
+      }
+      setReports(prev => prev.filter(r => r.id !== id));
+      const timeStr = new Date().toTimeString().split(' ')[0];
+      setLogs(prev => [...prev, { time: timeStr, type: 'SEC', text: `Moderation action [${action}] taken on: "${title}"` }]);
+    } catch (err) {
+      console.error("Failed to execute moderation action:", err);
+      alert("Failed to execute moderation action.");
+    }
   };
 
   const stats = [

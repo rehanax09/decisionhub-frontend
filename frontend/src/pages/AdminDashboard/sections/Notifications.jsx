@@ -1,22 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Send, Bell, Users, Globe } from 'lucide-react';
-
-const COMMUNITIES = ['All Users', 'Tech Innovators', 'Finance Wizards', 'AI Enthusiasts', 'Career Launchers', 'Startup Founders'];
+import api from '../../../api/api';
 
 const Notifications = () => {
+  const [communities, setCommunities] = useState(['All Users']);
   const [title,   setTitle]   = useState('');
   const [message, setMessage] = useState('');
   const [target,  setTarget]  = useState('All Users');
   const [sent,    setSent]    = useState([]);
   const [sending, setSending] = useState(false);
 
+  useEffect(() => {
+    const fetchCommunities = async () => {
+      try {
+        const res = await api.get('/api/communities');
+        if (res.data?.success && Array.isArray(res.data.data)) {
+          const names = res.data.data.map(c => c.name);
+          setCommunities(['All Users', ...names]);
+        }
+      } catch (err) {
+        console.error("Failed to load communities for broadcast:", err);
+      }
+    };
+    fetchCommunities();
+  }, []);
+
   const handleSend = async () => {
     if (!title.trim() || !message.trim()) { alert('Please fill in both title and message.'); return; }
     setSending(true);
-    await new Promise(r => setTimeout(r, 800));
-    setSent(prev => [{ id: Date.now(), title, message, target, time: new Date().toLocaleTimeString() }, ...prev]);
-    setTitle(''); setMessage('');
-    setSending(false);
+    try {
+      const res = await api.post('/api/admin/broadcast', { title, message, target });
+      alert(res.data?.message || 'Announcement broadcast successfully!');
+      setSent(prev => [{ id: Date.now(), title, message, target, time: new Date().toLocaleTimeString() }, ...prev]);
+      setTitle('');
+      setMessage('');
+    } catch (err) {
+      console.error("Failed to broadcast announcement:", err);
+      alert(err.response?.data?.message || 'Could not send announcement on server.');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -32,7 +55,7 @@ const Notifications = () => {
           <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '500' }}>Target Audience</label>
           <select value={target} onChange={e => setTarget(e.target.value)}
             style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', outline: 'none', fontSize: '0.9rem' }}>
-            {COMMUNITIES.map(c => <option key={c} value={c}>{c === 'All Users' ? '🌐 All Users' : `👥 ${c}`}</option>)}
+            {communities.map(c => <option key={c} value={c}>{c === 'All Users' ? '🌐 All Users' : `👥 ${c}`}</option>)}
           </select>
         </div>
 
