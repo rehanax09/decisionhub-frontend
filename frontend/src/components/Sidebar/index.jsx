@@ -69,9 +69,8 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
   const activeTab = queryParams.get('tab') || 'analytics';
 
   const baseNavItems = [
-    { id: 'dashboard', name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { id: 'create', name: 'Create Decision', path: '/create-decision', icon: PlusCircle },
     { id: 'boards', name: 'Decision Boards', path: '/decision-board', icon: CheckSquare },
+    { id: 'create', name: 'Create Decision', path: '/create-decision', icon: PlusCircle },
     { id: 'communities', name: 'Communities', path: '/communities', icon: Users },
     { id: 'notifications', name: 'Notifications', path: '/notifications', icon: Bell },
     { id: 'feedback', name: 'Feedback', path: '/feedback', icon: MessageSquare },

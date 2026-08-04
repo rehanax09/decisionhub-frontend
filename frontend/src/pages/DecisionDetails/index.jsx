@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { MessageSquare, CheckCircle, ArrowLeft, Trash2, Edit3, Plus, X, BarChart2, Check, Star, Lock, Unlock, ShieldAlert, Flag } from 'lucide-react';
+import { MessageSquare, CheckCircle, ArrowLeft, Trash2, Edit3, Plus, X, BarChart2, Check, Star, Lock, Unlock, ShieldAlert, Flag, Pin, Eye, EyeOff, Shield } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ChartTooltip, Legend } from 'recharts';
 import api from '../../api/api';
 import { useToast } from '../../context/ToastContext';
@@ -30,17 +30,21 @@ const CommentItem = ({
   comment,
   depth = 0,
   currentUser,
+  isModerator = false,
   editingCommentId,
   setEditingCommentId,
   editCommentText,
   setEditCommentText,
   handleEditComment,
   handleDeleteCommentClick,
+  handleTogglePinComment,
+  handleToggleHideComment,
   activeReplyId,
   setActiveReplyId,
   replyText,
   setReplyText,
-  handleAddReply
+  handleAddReply,
+  isDiscussionLocked = false
 }) => {
   const commentId = comment.commentId || comment.id;
   const username = comment.username || comment.author || 'Anonymous';
@@ -50,35 +54,135 @@ const CommentItem = ({
   const replies = comment.replies || [];
   const isOwner = currentUser && (currentUser.username === username);
   const isAdmin = currentUser && (currentUser.role === 'ADMIN' || localStorage.getItem('role') === 'admin');
+  const canDelete = isOwner || isModerator || isAdmin;
+  const isPinned = Boolean(comment.isPinned);
+  const isHidden = Boolean(comment.isHidden);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
       <div style={{
         padding: depth === 0 ? '16px' : '12px 16px',
         borderRadius: '10px',
-        background: depth === 0 ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.005)',
-        border: depth === 0 ? '1px solid var(--glass-border)' : '1px solid rgba(255,255,255,0.05)'
+        background: isPinned 
+          ? 'rgba(0, 245, 255, 0.03)' 
+          : depth === 0 
+            ? 'rgba(255,255,255,0.01)' 
+            : 'rgba(255,255,255,0.005)',
+        border: isPinned
+          ? '1px solid rgba(0, 245, 255, 0.35)'
+          : depth === 0 
+            ? '1px solid var(--glass-border)' 
+            : '1px solid rgba(255,255,255,0.05)',
+        boxShadow: isPinned ? '0 0 16px rgba(0, 245, 255, 0.06)' : 'none',
+        transition: 'all 0.2s ease'
       }}>
+        {/* Pinned & Hidden Status Badges */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: (isPinned || (isHidden && isModerator)) ? '8px' : '0' }}>
+          {isPinned && (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'rgba(0, 245, 255, 0.12)',
+              border: '1px solid rgba(0, 245, 255, 0.3)',
+              borderRadius: '12px',
+              padding: '2px 8px',
+              fontSize: '0.72rem',
+              color: 'var(--neon-cyan)',
+              fontWeight: 600
+            }}>
+              <Pin size={11} /> Pinned by Moderator
+            </div>
+          )}
+          {isHidden && isModerator && (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'rgba(255, 171, 0, 0.15)',
+              border: '1px solid rgba(255, 171, 0, 0.4)',
+              borderRadius: '12px',
+              padding: '2px 8px',
+              fontSize: '0.72rem',
+              color: '#ffab00',
+              fontWeight: 600
+            }}>
+              <EyeOff size={11} /> Hidden from Public (Moderator View)
+            </div>
+          )}
+        </div>
+
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', fontSize: depth === 0 ? '0.85rem' : '0.8rem' }}>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <span style={{ color: depth === 0 ? 'var(--neon-cyan)' : 'var(--neon-pink)', fontWeight: 'bold' }}>@{username}</span>
             <span style={{ color: 'var(--text-secondary)' }}>{formattedTime}</span>
           </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            {isOwner && (
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            {/* Pin / Unpin (Moderator only, top-level comments) */}
+            {isModerator && depth === 0 && (
+              <button 
+                onClick={() => handleTogglePinComment(commentId)}
+                style={{
+                  background: isPinned ? 'rgba(0, 245, 255, 0.12)' : 'transparent',
+                  border: isPinned ? '1px solid rgba(0, 245, 255, 0.3)' : '1px solid transparent',
+                  color: isPinned ? 'var(--neon-cyan)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '3px 7px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  transition: 'all 0.2s'
+                }}
+                title={isPinned ? "Unpin Comment" : "Pin Comment to Top"}
+              >
+                <Pin size={12} style={{ transform: isPinned ? 'rotate(45deg)' : 'none' }} />
+                <span>{isPinned ? 'Unpin' : 'Pin'}</span>
+              </button>
+            )}
+
+            {/* Hide / Unhide (Moderator only) */}
+            {isModerator && (
+              <button 
+                onClick={() => handleToggleHideComment(commentId)}
+                style={{
+                  background: isHidden ? 'rgba(255, 171, 0, 0.15)' : 'transparent',
+                  border: isHidden ? '1px solid rgba(255, 171, 0, 0.35)' : '1px solid transparent',
+                  color: isHidden ? '#ffab00' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '3px 7px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  transition: 'all 0.2s'
+                }}
+                title={isHidden ? "Unhide Comment (Make visible to everyone)" : "Hide Comment"}
+              >
+                {isHidden ? <Eye size={12} /> : <EyeOff size={12} />}
+                <span>{isHidden ? 'Unhide' : 'Hide'}</span>
+              </button>
+            )}
+
+            {/* Edit (Owner only) */}
+            {isOwner && !isHidden && (
               <button 
                 onClick={() => { setEditingCommentId(commentId); setEditCommentText(text); }}
-                style={{ background: 'transparent', border: 'none', color: 'var(--neon-cyan)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--neon-cyan)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '3px', borderRadius: '4px' }}
                 title="Edit Comment"
               >
                 <Edit3 size={depth === 0 ? 14 : 12} />
               </button>
             )}
-            {(isOwner || isAdmin) && (
+
+            {/* Delete (Owner, Moderator, Admin) */}
+            {canDelete && (
               <button 
                 onClick={() => handleDeleteCommentClick(commentId)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--neon-pink)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--neon-pink)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '3px', borderRadius: '4px' }}
                 title="Delete Comment"
               >
                 <Trash2 size={depth === 0 ? 14 : 12} />
@@ -87,7 +191,7 @@ const CommentItem = ({
           </div>
         </div>
 
-        {/* Content or Edit Form */}
+        {/* Content or Edit Form or Hidden placeholder */}
         {editingCommentId === commentId ? (
           <div style={{ marginTop: '8px', marginBottom: '12px' }}>
             <textarea
@@ -105,37 +209,64 @@ const CommentItem = ({
               </button>
             </div>
           </div>
+        ) : isHidden && !isModerator ? (
+          <div style={{
+            padding: '10px 14px',
+            background: 'rgba(255, 171, 0, 0.06)',
+            border: '1px dashed rgba(255, 171, 0, 0.3)',
+            borderRadius: '8px',
+            color: 'var(--text-secondary)',
+            fontStyle: 'italic',
+            fontSize: '0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            margin: '8px 0 12px 0'
+          }}>
+            <EyeOff size={14} color="#ffab00" />
+            <span>This comment has been hidden by a community moderator for review.</span>
+          </div>
         ) : (
-          <p style={{ color: 'var(--text-primary)', margin: 0, fontSize: depth === 0 ? '0.95rem' : '0.9rem', lineHeight: '1.5', marginBottom: '12px' }}>
+          <p style={{
+            color: isHidden ? 'var(--text-secondary)' : 'var(--text-primary)',
+            opacity: isHidden ? 0.8 : 1,
+            margin: 0,
+            fontSize: depth === 0 ? '0.95rem' : '0.9rem',
+            lineHeight: '1.5',
+            marginBottom: '12px',
+            fontStyle: isHidden ? 'italic' : 'normal'
+          }}>
             {text}
           </p>
         )}
 
         {/* Reply Action Button */}
-        <button 
-          onClick={() => {
-            setActiveReplyId(activeReplyId === commentId ? null : commentId);
-            setReplyText('');
-          }}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--neon-cyan)',
-            fontSize: '0.82rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            background: 'rgba(0, 245, 255, 0.05)',
-            transition: 'background 0.2s'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 245, 255, 0.1)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 245, 255, 0.05)'}
-        >
-          <MessageSquare size={13} /> Reply
-        </button>
+        {(!isDiscussionLocked || isModerator) && (!isHidden || isModerator) && (
+          <button 
+            onClick={() => {
+              setActiveReplyId(activeReplyId === commentId ? null : commentId);
+              setReplyText('');
+            }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--neon-cyan)',
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              background: 'rgba(0, 245, 255, 0.05)',
+              transition: 'background 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 245, 255, 0.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 245, 255, 0.05)'}
+          >
+            <MessageSquare size={13} /> Reply
+          </button>
+        )}
 
         {/* Inline Reply Form */}
         {activeReplyId === commentId && (
@@ -175,17 +306,21 @@ const CommentItem = ({
               comment={reply}
               depth={depth + 1}
               currentUser={currentUser}
+              isModerator={isModerator}
               editingCommentId={editingCommentId}
               setEditingCommentId={setEditingCommentId}
               editCommentText={editCommentText}
               setEditCommentText={setEditCommentText}
               handleEditComment={handleEditComment}
               handleDeleteCommentClick={handleDeleteCommentClick}
+              handleTogglePinComment={handleTogglePinComment}
+              handleToggleHideComment={handleToggleHideComment}
               activeReplyId={activeReplyId}
               setActiveReplyId={setActiveReplyId}
               replyText={replyText}
               setReplyText={setReplyText}
               handleAddReply={handleAddReply}
+              isDiscussionLocked={isDiscussionLocked}
             />
           ))}
         </div>
@@ -208,6 +343,11 @@ const DecisionDetails = () => {
   const [loading, setLoading] = useState(true);
   const [votedOptionId, setVotedOptionId] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+
+  // Community & Moderator state
+  const [communityDetails, setCommunityDetails] = useState(null);
+  const [communityMembership, setCommunityMembership] = useState(null);
+  const [isLockingDiscussion, setIsLockingDiscussion] = useState(false);
 
   // Unified Board & Options Edit States
   const [editTitle, setEditTitle] = useState('');
@@ -424,6 +564,18 @@ const DecisionDetails = () => {
     };
     fetchDecisionAndUser();
   }, [id]);
+
+  useEffect(() => {
+    if (decision?.communityId) {
+      Promise.all([
+        api.get(`/api/communities/${decision.communityId}`).catch(() => null),
+        api.get(`/api/communities/${decision.communityId}/membership`).catch(() => null)
+      ]).then(([commRes, membRes]) => {
+        if (commRes?.data?.data) setCommunityDetails(commRes.data.data);
+        if (membRes?.data?.data) setCommunityMembership(membRes.data.data);
+      }).catch(() => null);
+    }
+  }, [decision?.communityId]);
 
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -784,6 +936,51 @@ const DecisionDetails = () => {
     }
   };
 
+  const handleToggleLockDiscussion = async () => {
+    setIsLockingDiscussion(true);
+    try {
+      const res = await api.put(`/api/decisions/${id}/lock`);
+      if (res.data?.success) {
+        showToast(res.data.message || "Discussion status updated.", "success");
+        setDecision(prev => ({
+          ...prev,
+          isDiscussionLocked: res.data.data?.isDiscussionLocked
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to toggle discussion lock:", err);
+      showToast(err.response?.data?.message || "Failed to update discussion lock status.", "error");
+    } finally {
+      setIsLockingDiscussion(false);
+    }
+  };
+
+  const handleTogglePinComment = async (commentId) => {
+    try {
+      const res = await api.put(`/api/comments/${commentId}/pin`);
+      if (res.data?.success) {
+        showToast(res.data.message || "Comment pin status updated.", "success");
+        await fetchComments();
+      }
+    } catch (err) {
+      console.error("Failed to toggle pin comment:", err);
+      showToast(err.response?.data?.message || "Failed to update pin status.", "error");
+    }
+  };
+
+  const handleToggleHideComment = async (commentId) => {
+    try {
+      const res = await api.put(`/api/comments/${commentId}/hide`);
+      if (res.data?.success) {
+        showToast(res.data.message || "Comment visibility updated.", "success");
+        await fetchComments();
+      }
+    } catch (err) {
+      console.error("Failed to toggle hide comment:", err);
+      showToast(err.response?.data?.message || "Failed to update visibility.", "error");
+    }
+  };
+
   const handleAddParameterInline = async (e) => {
     e.preventDefault();
     if (!newParamName.trim()) return;
@@ -858,11 +1055,25 @@ const DecisionDetails = () => {
 
   const isOwner = Boolean(
     currentUser && (
-      String(currentUser.id) === String(decision?.userId) || 
-      currentUser.role === 'ADMIN' ||
-      currentUser.role === 'admin'
+      String(currentUser.id) === String(decision?.userId)
     )
   );
+  const isAdmin = Boolean(
+    currentUser && (
+      currentUser.role === 'ADMIN' ||
+      currentUser.role === 'admin' ||
+      localStorage.getItem('role') === 'admin'
+    )
+  );
+  const isCommunityModerator = Boolean(
+    currentUser && (
+      (communityDetails && (String(communityDetails.moderatorId) === String(currentUser.id) || communityDetails.moderatorUsername === currentUser.username)) ||
+      (communityMembership && (communityMembership.isModerator || communityMembership.moderator || communityMembership.memberRole === 'MODERATOR'))
+    )
+  );
+  const isModerator = isOwner || isAdmin || isCommunityModerator;
+  const isDiscussionLocked = Boolean(decision?.isDiscussionLocked);
+
   // CLOSED = locked board, anything else (OPEN, ACTIVE, etc.) = open/live
   const isClosed = decision?.status === 'CLOSED' || decision?.status === 'closed';
   const visibleOptionsEdit = (editOptions || []).map((opt, idx) => ({ opt: opt || {}, idx })).filter(x => x.opt && !x.opt.isDeleted);
@@ -1133,7 +1344,82 @@ const DecisionDetails = () => {
 
       {activeTab === 'discussion' && (
         <div className="glass-panel" style={{ padding: '30px' }}>
-          <h3 style={{ marginBottom: '24px', fontFamily: 'Outfit' }}>Comments & Replies</h3>
+          {/* Discussion Header & Lock Action */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h3 style={{ margin: 0, fontFamily: 'Outfit' }}>Comments & Replies</h3>
+              <span style={{ fontSize: '0.8rem', padding: '2px 8px', borderRadius: '12px', background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}>
+                {comments.length}
+              </span>
+              {isDiscussionLocked && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', padding: '3px 8px', borderRadius: '12px', background: 'rgba(255, 42, 109, 0.15)', color: 'var(--neon-pink)', border: '1px solid rgba(255, 42, 109, 0.3)' }}>
+                  <Lock size={12} /> Locked
+                </span>
+              )}
+            </div>
+
+            {isModerator && (
+              <button
+                onClick={handleToggleLockDiscussion}
+                disabled={isLockingDiscussion}
+                className="btn-secondary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.82rem',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  borderColor: isDiscussionLocked ? 'rgba(0, 245, 255, 0.4)' : 'rgba(255, 42, 109, 0.4)',
+                  color: isDiscussionLocked ? 'var(--neon-cyan)' : 'var(--neon-pink)',
+                  background: isDiscussionLocked ? 'rgba(0, 245, 255, 0.06)' : 'rgba(255, 42, 109, 0.06)',
+                  cursor: isLockingDiscussion ? 'not-allowed' : 'pointer'
+                }}
+                title={isDiscussionLocked ? "Unlock discussion for all members" : "Lock discussion to prevent new comments"}
+              >
+                {isDiscussionLocked ? <Unlock size={14} /> : <Lock size={14} />}
+                {isDiscussionLocked ? 'Unlock Discussion' : 'Lock Discussion'}
+              </button>
+            )}
+          </div>
+
+          {/* Locked Discussion Alert Banner */}
+          {isDiscussionLocked && (
+            <div style={{
+              padding: '14px 18px',
+              background: 'linear-gradient(90deg, rgba(255, 42, 109, 0.12) 0%, rgba(255, 42, 109, 0.04) 100%)',
+              border: '1px solid rgba(255, 42, 109, 0.3)',
+              borderRadius: '12px',
+              marginBottom: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 42, 109, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--neon-pink)'
+                }}>
+                  <Lock size={18} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--neon-pink)', fontSize: '0.92rem' }}>
+                    Discussion is Locked by Moderator
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    New comments and replies are restricted to community moderators and administrators.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Discussion feed */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '30px' }}>
@@ -1146,17 +1432,21 @@ const DecisionDetails = () => {
                   comment={comment}
                   depth={0}
                   currentUser={currentUser}
+                  isModerator={isModerator}
                   editingCommentId={editingCommentId}
                   setEditingCommentId={setEditingCommentId}
                   editCommentText={editCommentText}
                   setEditCommentText={setEditCommentText}
                   handleEditComment={handleEditComment}
                   handleDeleteCommentClick={handleDeleteCommentClick}
+                  handleTogglePinComment={handleTogglePinComment}
+                  handleToggleHideComment={handleToggleHideComment}
                   activeReplyId={activeReplyId}
                   setActiveReplyId={setActiveReplyId}
                   replyText={replyText}
                   setReplyText={setReplyText}
                   handleAddReply={handleAddReply}
+                  isDiscussionLocked={isDiscussionLocked}
                 />
               ))
             )}
@@ -1169,12 +1459,18 @@ const DecisionDetails = () => {
                 <Lock size={16} color="var(--neon-pink)" /> Comments are locked because this decision is closed.
               </p>
             </div>
+          ) : isDiscussionLocked && !isModerator ? (
+            <div className="glass-panel" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255, 255, 255, 0.01)', border: '1px dashed rgba(255, 42, 109, 0.3)', borderRadius: '12px' }}>
+              <p style={{ margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
+                <Lock size={16} color="var(--neon-pink)" /> You cannot add comments because this discussion has been locked by a moderator.
+              </p>
+            </div>
           ) : (
             <form onSubmit={handleAddComment} style={{ display: 'flex', gap: '12px' }}>
               <input 
                 type="text"
                 required
-                placeholder="Add your feedback to the debate..."
+                placeholder={isDiscussionLocked ? "Add moderator comment..." : "Add your feedback to the debate..."}
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 style={{

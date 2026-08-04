@@ -49,7 +49,7 @@ const Login = () => {
       if (role === 'admin') {
         navigate("/admin/dashboard?tab=analytics");
       } else {
-        navigate("/dashboard");
+        navigate("/decision-board");
       }
 
     } catch (error) {

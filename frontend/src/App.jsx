@@ -33,7 +33,7 @@ import Feedback from './pages/Feedback';
 const AdminRoute = ({ children }) => {
   const role = localStorage.getItem('role');
   if (role !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/decision-board" replace />;
   }
   return children;
 };
@@ -106,7 +106,7 @@ function App() {
 
           {/* Dashboard Routes with Sidebar and Top Navbar */}
           <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Navigate to="/decision-board" replace />} />
             <Route path="/decision-board" element={<DecisionBoards />} />
             <Route path="/create-decision" element={<CreateDecision />} />
             <Route path="/decision/:id" element={<DecisionDetails />} />
