@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Users, Target, BarChart2, CheckSquare, TrendingUp, Activity, 
-  Clock, ShieldAlert, Radio, Send, Check, X, Terminal, AlertTriangle 
+  Clock, ShieldAlert, Radio, Send, Check, X, Terminal, AlertTriangle, ExternalLink
 } from 'lucide-react';
 import api from '../../../api/api';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -338,37 +338,57 @@ const Overview = () => {
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {reports.map(r => (
-                <div key={r.id} style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center', 
-                  padding: '12px 14px', 
-                  background: 'rgba(255,255,255,0.01)', 
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '10px'
-                }}>
-                  <div>
-                    <span style={{ fontSize: '0.72rem', padding: '2px 6px', borderRadius: '10px', background: 'rgba(0,245,255,0.1)', color: 'var(--neon-cyan)', fontWeight: 'bold', display: 'inline-block', marginBottom: '4px' }}>{r.type}</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: '600', display: 'block' }}>{r.title}</span>
-                    <span style={{ fontSize: '0.74rem', color: '#ff4444' }}>Reason: {r.reason}</span>
+              {reports.map(r => {
+                const targetType = r.targetType || r.type || 'BOARD';
+                const targetTitle = r.targetTitle || r.title || 'Untitled';
+                const itemUrl = targetType === 'COMMENT'
+                  ? `/decision/${r.decisionId || r.targetId}#comment-${r.targetId}`
+                  : (targetType === 'COMMUNITY' ? `/communities/${r.targetId}` : `/decision/${r.targetId || r.decisionId}`);
+                
+                return (
+                  <div key={r.id} style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    padding: '12px 14px', 
+                    background: 'rgba(255,255,255,0.01)', 
+                    border: '1px solid var(--glass-border)',
+                    borderRadius: '10px',
+                    gap: '12px'
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: '0.72rem', padding: '2px 6px', borderRadius: '10px', background: 'rgba(0,245,255,0.1)', color: 'var(--neon-cyan)', fontWeight: 'bold', display: 'inline-block', marginBottom: '4px' }}>{targetType}</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '600', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{targetTitle}</span>
+                      <span style={{ fontSize: '0.74rem', color: '#ff4444' }}>Reason: {r.reason}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
+                      {itemUrl && (
+                        <a
+                          href={itemUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ padding: '5px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid rgba(0,245,255,0.3)', background: 'transparent', color: 'var(--neon-cyan)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          title="Open Item in New Tab"
+                        >
+                          <ExternalLink size={12} /> View
+                        </a>
+                      )}
+                      <button 
+                        onClick={() => resolveReport(r.id, targetTitle, 'DISMISS')}
+                        style={{ padding: '5px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                      >
+                        Dismiss
+                      </button>
+                      <button 
+                        onClick={() => resolveReport(r.id, targetTitle, 'DELETE')}
+                        style={{ padding: '5px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid rgba(255,0,0,0.3)', background: 'rgba(255,0,0,0.1)', color: '#ff4444', cursor: 'pointer' }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button 
-                      onClick={() => resolveReport(r.id, r.title, 'DISMISS')}
-                      style={{ padding: '5px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                    >
-                      Dismiss
-                    </button>
-                    <button 
-                      onClick={() => resolveReport(r.id, r.title, 'BAN')}
-                      style={{ padding: '5px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid rgba(255,0,0,0.3)', background: 'transparent', color: '#ff4444', cursor: 'pointer' }}
-                    >
-                      Ban
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

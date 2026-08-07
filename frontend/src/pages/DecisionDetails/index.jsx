@@ -39,6 +39,7 @@ const CommentItem = ({
   handleDeleteCommentClick,
   handleTogglePinComment,
   handleToggleHideComment,
+  handleReportCommentClick,
   activeReplyId,
   setActiveReplyId,
   replyText,
@@ -46,6 +47,7 @@ const CommentItem = ({
   handleAddReply,
   isDiscussionLocked = false
 }) => {
+  const [showFlaggedContent, setShowFlaggedContent] = useState(false);
   const commentId = comment.commentId || comment.id;
   const username = comment.username || comment.author || 'Anonymous';
   const text = comment.commentText || comment.text;
@@ -59,7 +61,7 @@ const CommentItem = ({
   const isHidden = Boolean(comment.isHidden);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <div id={`comment-${commentId}`} style={{ display: 'flex', flexDirection: 'column', gap: '10px', scrollMarginTop: '100px' }}>
       <div style={{
         padding: depth === 0 ? '16px' : '12px 16px',
         borderRadius: '10px',
@@ -188,6 +190,30 @@ const CommentItem = ({
                 <Trash2 size={depth === 0 ? 14 : 12} />
               </button>
             )}
+
+            {/* Report Comment (Non-owner only) */}
+            {!isOwner && handleReportCommentClick && (
+              <button 
+                onClick={() => handleReportCommentClick(comment)}
+                style={{ 
+                  background: 'transparent', 
+                  border: 'none', 
+                  color: 'var(--text-secondary)', 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  padding: '3px', 
+                  borderRadius: '4px',
+                  opacity: 0.7,
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#ff6b6b'; e.currentTarget.style.opacity = '1'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.opacity = '0.7'; }}
+                title="Report Comment"
+              >
+                <Flag size={depth === 0 ? 14 : 12} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -211,20 +237,49 @@ const CommentItem = ({
           </div>
         ) : isHidden && !isModerator ? (
           <div style={{
-            padding: '10px 14px',
-            background: 'rgba(255, 171, 0, 0.06)',
-            border: '1px dashed rgba(255, 171, 0, 0.3)',
+            padding: '12px 14px',
+            background: 'rgba(255, 171, 0, 0.08)',
+            border: '1px dashed rgba(255, 171, 0, 0.35)',
             borderRadius: '8px',
-            color: 'var(--text-secondary)',
-            fontStyle: 'italic',
-            fontSize: '0.85rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
             margin: '8px 0 12px 0'
           }}>
-            <EyeOff size={14} color="#ffab00" />
-            <span>This comment has been hidden by a community moderator for review.</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ffab00', fontSize: '0.85rem' }}>
+                <EyeOff size={14} color="#ffab00" />
+                <span>
+                  {isOwner 
+                    ? '⚠️ Your comment was flagged & hidden by a moderator for review.' 
+                    : 'This comment has been hidden by a community moderator for review.'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFlaggedContent(!showFlaggedContent)}
+                style={{
+                  background: 'rgba(255, 171, 0, 0.15)',
+                  border: '1px solid rgba(255, 171, 0, 0.35)',
+                  color: '#ffab00',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {showFlaggedContent ? <EyeOff size={12} /> : <Eye size={12} />}
+                <span>{showFlaggedContent ? 'Hide Flagged Text' : 'Show Flagged Content'}</span>
+              </button>
+            </div>
+
+            {showFlaggedContent && (
+              <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255, 171, 0, 0.2)', color: 'var(--text-secondary)', fontSize: '0.9rem', fontStyle: 'italic', lineHeight: 1.5 }}>
+                {text}
+              </div>
+            )}
           </div>
         ) : (
           <p style={{
@@ -315,6 +370,7 @@ const CommentItem = ({
               handleDeleteCommentClick={handleDeleteCommentClick}
               handleTogglePinComment={handleTogglePinComment}
               handleToggleHideComment={handleToggleHideComment}
+              handleReportCommentClick={handleReportCommentClick}
               activeReplyId={activeReplyId}
               setActiveReplyId={setActiveReplyId}
               replyText={replyText}
@@ -586,6 +642,32 @@ const DecisionDetails = () => {
       startEdit();
     }
   }, [isEditParam, decision]);
+
+  // If navigating directly to a comment via hash (#comment-123), automatically switch to discussion tab
+  useEffect(() => {
+    if (location.hash && location.hash.startsWith('#comment-')) {
+      setActiveTab('discussion');
+    }
+  }, [location.hash]);
+
+  // Scroll to and highlight targeted comment
+  useEffect(() => {
+    if (location.hash && activeTab === 'discussion' && comments.length > 0) {
+      const timer = setTimeout(() => {
+        const el = document.querySelector(location.hash);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.style.boxShadow = '0 0 20px rgba(255, 171, 0, 0.7)';
+          el.style.borderRadius = '10px';
+          el.style.transition = 'box-shadow 0.5s ease';
+          setTimeout(() => {
+            el.style.boxShadow = '';
+          }, 3500);
+        }
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [location.hash, activeTab, comments]);
 
   useEffect(() => {
     if (activeTab === 'discussion') {
@@ -979,6 +1061,16 @@ const DecisionDetails = () => {
       console.error("Failed to toggle hide comment:", err);
       showToast(err.response?.data?.message || "Failed to update visibility.", "error");
     }
+  };
+
+  const handleReportCommentClick = (comment) => {
+    setReportModalState({
+      isOpen: true,
+      targetType: 'COMMENT',
+      targetId: comment.commentId || comment.id,
+      targetTitle: comment.commentText || comment.text || 'Comment',
+      reportedUserId: comment.userId || null
+    });
   };
 
   const handleAddParameterInline = async (e) => {
@@ -1441,6 +1533,7 @@ const DecisionDetails = () => {
                   handleDeleteCommentClick={handleDeleteCommentClick}
                   handleTogglePinComment={handleTogglePinComment}
                   handleToggleHideComment={handleToggleHideComment}
+                  handleReportCommentClick={handleReportCommentClick}
                   activeReplyId={activeReplyId}
                   setActiveReplyId={setActiveReplyId}
                   replyText={replyText}

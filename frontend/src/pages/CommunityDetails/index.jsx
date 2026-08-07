@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Users, Shield, MessageSquare, Plus, ArrowLeft, CheckCircle, X, ThumbsUp, Clock, Trash2, Edit3, ShieldAlert } from 'lucide-react';
+import { Users, Shield, MessageSquare, Plus, ArrowLeft, CheckCircle, X, ThumbsUp, Clock, Trash2, Edit3, ShieldAlert, AlertTriangle, Eye, EyeOff, UserX, ExternalLink, Flag, Filter, Check } from 'lucide-react';
 import api from '../../api/api';
 import { useToast } from '../../context/ToastContext';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -42,6 +42,21 @@ const CommunityDetails = () => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [members, setMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
+
+  // Manage Reports State (Community Moderator Queue)
+  const [showReportsModal, setShowReportsModal] = useState(false);
+  const [communityReports, setCommunityReports] = useState([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+  const [reportFilter, setReportFilter] = useState('ALL');
+  const [pendingReportsCount, setPendingReportsCount] = useState(0);
+
+  // Moderation Action Modal State
+  const [actionModalOpen, setActionModalOpen] = useState(false);
+  const [selectedReportForAction, setSelectedReportForAction] = useState(null);
+  const [actionType, setActionType] = useState('WARN'); // WARN | HIDE_COMMENT | UNHIDE_COMMENT | DELETE_CONTENT | KICK_MEMBER | DISMISS
+  const [modNotes, setModNotes] = useState('');
+  const [warningDirective, setWarningDirective] = useState('');
+  const [actionSubmitting, setActionSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -85,6 +100,17 @@ const CommunityDetails = () => {
             setDecisions(commDecisions);
           } else {
             setDecisions([]);
+          }
+
+          // Check pending reports for moderator or admin
+          const isMod = user?.username === comm.moderatorUsername;
+          const isUserAdmin = user?.role === 'ADMIN' || localStorage.getItem('role') === 'admin';
+          if (isMod || isUserAdmin) {
+            api.get(`/api/communities/${id}/reports?status=PENDING`).then(rRes => {
+              if (rRes.data?.success && Array.isArray(rRes.data.data)) {
+                setPendingReportsCount(rRes.data.data.length);
+              }
+            }).catch(() => null);
           }
         }
       } catch (err) {
@@ -285,6 +311,88 @@ const CommunityDetails = () => {
     }
   };
 
+  const fetchCommunityReports = async (status = reportFilter) => {
+    if (!id) return;
+    setLoadingReports(true);
+    try {
+      const res = await api.get(`/api/communities/${id}/reports?status=${status}`);
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setCommunityReports(res.data.data);
+        const pending = res.data.data.filter(r => r.status === 'PENDING').length;
+        setPendingReportsCount(pending);
+      }
+    } catch (err) {
+      console.error("Failed to load community reports:", err);
+      showToast(err.response?.data?.message || "Failed to load reports.", "error");
+    } finally {
+      setLoadingReports(false);
+    }
+  };
+
+  const openReportsModal = () => {
+    setShowReportsModal(true);
+    fetchCommunityReports(reportFilter);
+  };
+
+  const handleFilterChange = (status) => {
+    setReportFilter(status);
+    fetchCommunityReports(status);
+  };
+
+  const handleInitiateAction = (report, type) => {
+    setSelectedReportForAction(report);
+    setActionType(type);
+    setModNotes('');
+    setWarningDirective(
+      type === 'WARN' 
+        ? `Please ensure future contributions strictly follow community standards.`
+        : ''
+    );
+    setActionModalOpen(true);
+  };
+
+  const handleExecuteAction = async () => {
+    if (!selectedReportForAction) return;
+    setActionSubmitting(true);
+    try {
+      const payload = {
+        action: actionType,
+        moderatorNotes: modNotes.trim(),
+        warningMessage: actionType === 'WARN' ? warningDirective.trim() : undefined
+      };
+      const res = await api.post(
+        `/api/communities/${id}/reports/${selectedReportForAction.id}/action`,
+        payload
+      );
+      if (res.data?.success) {
+        showToast(`Moderation action (${actionType}) applied successfully.`, 'success');
+        setActionModalOpen(false);
+        setSelectedReportForAction(null);
+        setModNotes('');
+        setWarningDirective('');
+        await fetchCommunityReports(reportFilter);
+      }
+    } catch (err) {
+      console.error("Failed to execute moderation action:", err);
+      showToast(err.response?.data?.message || "Failed to execute moderation action.", "error");
+    } finally {
+      setActionSubmitting(false);
+    }
+  };
+
+  const handleQuickDismissReport = async (reportId) => {
+    try {
+      const res = await api.post(`/api/communities/${id}/reports/${reportId}/dismiss`, { notes: "Dismissed by community moderator" });
+      if (res.data?.success) {
+        showToast("Report dismissed.", "success");
+        await fetchCommunityReports(reportFilter);
+      }
+    } catch (err) {
+      console.error("Failed to dismiss report:", err);
+      showToast(err.response?.data?.message || "Failed to dismiss report.", "error");
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }} className="glass-panel">
@@ -352,6 +460,47 @@ const CommunityDetails = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '200px' }}>
             {(isModerator || isAdmin) ? (
               <>
+                <button 
+                  onClick={openReportsModal}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid #ffab00',
+                    background: pendingReportsCount > 0 ? 'rgba(255, 171, 0, 0.2)' : 'rgba(255, 171, 0, 0.08)',
+                    color: '#ffab00',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    fontFamily: "'Outfit', sans-serif",
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: pendingReportsCount > 0 ? '0 0 15px rgba(255, 171, 0, 0.3)' : 'none'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 171, 0, 0.25)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = pendingReportsCount > 0 ? 'rgba(255, 171, 0, 0.2)' : 'rgba(255, 171, 0, 0.08)';
+                  }}
+                >
+                  <ShieldAlert size={16} /> Comment Reports
+                  {pendingReportsCount > 0 && (
+                    <span style={{
+                      background: '#ef4444',
+                      color: '#ffffff',
+                      fontSize: '0.72rem',
+                      padding: '2px 7px',
+                      borderRadius: '10px',
+                      fontWeight: 'bold',
+                      animation: 'pulse 2s infinite'
+                    }}>
+                      {pendingReportsCount}
+                    </span>
+                  )}
+                </button>
                 <button 
                   onClick={openEditModal}
                   style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--neon-cyan)', background: 'rgba(0, 245, 255, 0.15)', color: 'var(--neon-cyan)', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s ease', fontFamily: "'Outfit', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
@@ -824,6 +973,292 @@ const CommunityDetails = () => {
           showToast("Community report submitted for moderation review.", "success");
         }}
       />
+
+      {/* ── Community Moderation Queue Modal ────────────────────────────── */}
+      {showReportsModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '20px'
+        }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '850px', maxHeight: '85vh', overflowY: 'auto', padding: '32px', borderRadius: '24px', position: 'relative', border: '1px solid #ffab00' }}>
+            <button 
+              onClick={() => setShowReportsModal(false)} 
+              style={{ position: 'absolute', top: '22px', right: '22px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+            >
+              <X size={24} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+              <ShieldAlert size={28} color="#ffab00" />
+              <h2 style={{ fontFamily: 'Outfit', fontSize: '1.8rem', margin: 0, color: 'var(--text-primary)' }}>
+                Reported Comments Queue
+              </h2>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 20px 0' }}>
+              Review reported comments in <strong>{community.name}</strong>. As community moderator, you can warn commenters, hide/delete comments, or remove rule-violating members. (Decision Board reports are reviewed by Super Admin).
+            </p>
+
+            {/* Filter Tabs */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
+              {[
+                { label: 'All Reports', value: 'ALL' },
+                { label: 'Pending Review', value: 'PENDING' },
+                { label: 'Actions Taken', value: 'ACTION_TAKEN' },
+                { label: 'Dismissed', value: 'DISMISSED' }
+              ].map(f => (
+                <button
+                  key={f.value}
+                  onClick={() => handleFilterChange(f.value)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: reportFilter === f.value ? '1px solid #ffab00' : '1px solid var(--glass-border)',
+                    background: reportFilter === f.value ? 'rgba(255, 171, 0, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                    color: reportFilter === f.value ? '#ffab00' : 'var(--text-secondary)',
+                    fontWeight: reportFilter === f.value ? 'bold' : 'normal',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {loadingReports ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                Loading reported content...
+              </div>
+            ) : communityReports.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '50px 20px', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.01)', borderRadius: '12px', border: '1px dashed var(--glass-border)' }}>
+                <CheckCircle size={36} color="var(--neon-cyan)" style={{ marginBottom: '12px', opacity: 0.8 }} />
+                <h4 style={{ margin: '0 0 6px 0', color: 'var(--text-primary)' }}>All Clean!</h4>
+                <p style={{ margin: 0, fontSize: '0.9rem' }}>No reports found in this status category.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {communityReports.map(rep => {
+                  const isPending = rep.status === 'PENDING';
+                  const isComment = rep.targetType === 'COMMENT';
+
+                  return (
+                    <div 
+                      key={rep.id}
+                      style={{
+                        padding: '20px',
+                        background: 'var(--panel-bg)',
+                        border: isPending ? '1px solid rgba(255, 171, 0, 0.4)' : '1px solid var(--glass-border)',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{
+                            background: isComment ? 'rgba(0, 245, 255, 0.15)' : 'rgba(255, 0, 255, 0.15)',
+                            color: isComment ? 'var(--neon-cyan)' : 'var(--neon-pink)',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.75rem',
+                            fontWeight: 'bold'
+                          }}>
+                            {rep.targetType}
+                          </span>
+                          <span style={{
+                            background: isPending ? 'rgba(255, 171, 0, 0.15)' : rep.status === 'ACTION_TAKEN' ? 'rgba(0, 255, 127, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                            color: isPending ? '#ffab00' : rep.status === 'ACTION_TAKEN' ? '#00ff7f' : 'var(--text-secondary)',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.75rem',
+                            fontWeight: 'bold'
+                          }}>
+                            {rep.status} {rep.actionTaken && rep.actionTaken !== 'NONE' ? `(${rep.actionTaken})` : ''}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          {new Date(rep.createdAt).toLocaleString()}
+                        </div>
+                      </div>
+
+                      {/* Reported Content Box */}
+                      <div style={{
+                        padding: '12px 16px',
+                        background: 'rgba(0,0,0,0.3)',
+                        borderRadius: '8px',
+                        borderLeft: '3px solid #ffab00'
+                      }}>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                          Reported {rep.targetType}: {rep.reportedUsername ? <strong style={{ color: 'var(--neon-cyan)' }}>@{rep.reportedUsername}</strong> : 'Author unknown'}
+                        </div>
+                        <div style={{ color: 'var(--text-primary)', fontSize: '0.95rem', lineHeight: '1.4' }}>
+                          "{rep.targetTitle}"
+                        </div>
+                        {(rep.decisionId || (isComment && rep.targetId)) && (
+                          <div style={{ marginTop: '8px' }}>
+                            <Link 
+                              to={`/decision/${rep.decisionId || rep.targetId}${isComment ? `#comment-${rep.targetId}` : ''}`} 
+                              target="_blank"
+                              style={{ color: 'var(--neon-cyan)', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
+                            >
+                              <ExternalLink size={12} /> {isComment ? 'View Comment in Board Discussion' : 'View Flagged Board'}
+                              {rep.decisionTitle ? ` ("${rep.decisionTitle}")` : ''}
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Reason & Details */}
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div>
+                          <strong style={{ color: 'var(--text-primary)' }}>Reason:</strong> {rep.reason || 'Not specified'}
+                        </div>
+                        {rep.details && (
+                          <div>
+                            <strong style={{ color: 'var(--text-primary)' }}>Details:</strong> {rep.details}
+                          </div>
+                        )}
+                        <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+                          Reported by: @{rep.reporterUsername || 'Anonymous'}
+                        </div>
+                      </div>
+
+                      {/* Moderator Notes if present */}
+                      {rep.moderatorNotes && (
+                        <div style={{ fontSize: '0.82rem', padding: '8px 12px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '6px', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)' }}>
+                          <strong>Mod Note:</strong> {rep.moderatorNotes}
+                        </div>
+                      )}
+
+                      {/* Action Buttons for Pending Reports */}
+                      {isPending && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px', paddingTop: '12px', borderTop: '1px solid var(--glass-border)' }}>
+                          <button
+                            onClick={() => handleInitiateAction(rep, 'WARN')}
+                            style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid #ffab00', background: 'rgba(255, 171, 0, 0.1)', color: '#ffab00', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <AlertTriangle size={14} /> Warn Author
+                          </button>
+
+                          {isComment && (
+                            <button
+                              onClick={() => handleInitiateAction(rep, 'HIDE_COMMENT')}
+                              style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--neon-cyan)', background: 'rgba(0, 245, 255, 0.1)', color: 'var(--neon-cyan)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}
+                            >
+                              <EyeOff size={14} /> Hide Comment
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => handleInitiateAction(rep, 'DELETE_CONTENT')}
+                            style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid #ef4444', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <Trash2 size={14} /> Delete Content
+                          </button>
+
+                          {rep.reportedUserId && (
+                            <button
+                              onClick={() => handleInitiateAction(rep, 'KICK_MEMBER')}
+                              style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--neon-pink)', background: 'rgba(255, 0, 255, 0.1)', color: 'var(--neon-pink)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}
+                            >
+                              <UserX size={14} /> Kick Member
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => handleQuickDismissReport(rep.id)}
+                            style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--glass-border)', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.82rem', marginLeft: 'auto' }}
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Action Confirmation & Directive Modal ──────────────────────── */}
+      {actionModalOpen && selectedReportForAction && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10000, padding: '20px'
+        }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '520px', padding: '30px', borderRadius: '20px', position: 'relative', border: '1px solid var(--neon-cyan)' }}>
+            <button 
+              onClick={() => setActionModalOpen(false)} 
+              style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+            >
+              <X size={20} />
+            </button>
+
+            <h3 style={{ fontFamily: 'Outfit', fontSize: '1.4rem', margin: '0 0 10px 0', color: 'var(--text-primary)' }}>
+              Confirm Action: {actionType.replace('_', ' ')}
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: '0 0 20px 0' }}>
+              Target: <strong>"{selectedReportForAction.targetTitle}"</strong> {selectedReportForAction.reportedUsername ? `by @${selectedReportForAction.reportedUsername}` : ''}
+            </p>
+
+            {actionType === 'WARN' && (
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  Warning Directive / Guidance for User:
+                </label>
+                <textarea
+                  rows={3}
+                  value={warningDirective}
+                  onChange={(e) => setWarningDirective(e.target.value)}
+                  className="input-premium"
+                  placeholder="Explain what rule was broken and what is expected..."
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)' }}
+                />
+              </div>
+            )}
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Internal Moderator Notes (Optional):
+              </label>
+              <input
+                type="text"
+                value={modNotes}
+                onChange={(e) => setModNotes(e.target.value)}
+                className="input-premium"
+                placeholder="Reason or notes recorded for moderation history..."
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button 
+                type="button" 
+                onClick={() => setActionModalOpen(false)} 
+                className="btn-secondary" 
+                style={{ padding: '8px 18px' }}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                disabled={actionSubmitting} 
+                onClick={handleExecuteAction} 
+                className="btn-primary" 
+                style={{ padding: '8px 20px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                {actionSubmitting ? 'Executing...' : 'Confirm & Apply'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

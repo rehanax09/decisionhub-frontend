@@ -108,6 +108,7 @@ function App() {
           <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
             <Route path="/dashboard" element={<Navigate to="/decision-board" replace />} />
             <Route path="/decision-board" element={<DecisionBoards />} />
+            <Route path="/decision-board/:id" element={<DecisionDetails />} />
             <Route path="/create-decision" element={<CreateDecision />} />
             <Route path="/decision/:id" element={<DecisionDetails />} />
             <Route path="/decision/:id/compare" element={<ComparisonPage />} />
@@ -115,6 +116,7 @@ function App() {
             <Route path="/polls" element={<Polls />} />
             <Route path="/communities" element={<Communities />} />
             <Route path="/communities/:id" element={<CommunityDetails />} />
+            <Route path="/community/:id" element={<CommunityDetails />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/notifications" element={<Notifications />} />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, MessageSquare, TrendingUp, UserPlus, CheckCircle, Trash2, ShieldAlert, Sparkles } from 'lucide-react';
+import { Bell, MessageSquare, TrendingUp, UserPlus, CheckCircle, Trash2, ShieldAlert, Sparkles, Eye } from 'lucide-react';
 import api from '../../api/api';
 
 const Notifications = () => {
@@ -57,9 +57,10 @@ const Notifications = () => {
 
     // Navigate to relevant entity if available
     if (notification.decisionId) {
-      navigate(`/decision-board/${notification.decisionId}`);
+      const hash = notification.referenceId ? `#comment-${notification.referenceId}` : '';
+      navigate(`/decision/${notification.decisionId}${hash}`);
     } else if (notification.communityId) {
-      navigate(`/community/${notification.communityId}`);
+      navigate(`/communities/${notification.communityId}`);
     }
   };
 
@@ -274,9 +275,72 @@ const Notifications = () => {
 
                 {/* Message Content */}
                 <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: '1.05rem', lineHeight: '1.5', color: isUnread ? 'white' : 'var(--text-secondary)' }}>
-                    {formatNotificationMessage(notification)}
-                  </p>
+                  {notification.type === 'WARNING' || notification.type === 'MODERATOR_ACTION' ? (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                        <span style={{ color: '#ff4444', fontWeight: 'bold', fontSize: '1rem', fontFamily: 'Outfit' }}>
+                          {notification.title || '⚠️ Moderation Warning'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.95rem', lineHeight: '1.6', color: isUnread ? '#f0f0f0' : 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {formatNotificationMessage(notification).split('\n').map((line, idx) => {
+                          if (line.startsWith('Report Details:')) {
+                            return (
+                              <div key={idx} style={{ background: 'rgba(255,255,255,0.04)', padding: '6px 10px', borderRadius: '6px', borderLeft: '2px solid var(--text-secondary)', fontSize: '0.88rem' }}>
+                                <strong>Report Details:</strong> {line.replace(/^Report Details:\s*/i, '')}
+                              </div>
+                            );
+                          }
+                          if (line.startsWith('Moderator Directive:')) {
+                            return (
+                              <div key={idx} style={{ background: 'rgba(255, 68, 68, 0.1)', border: '1px solid rgba(255, 68, 68, 0.3)', padding: '8px 12px', borderRadius: '6px', color: '#ff7777', fontWeight: 500, marginTop: '4px' }}>
+                                <strong>Moderator Directive:</strong> {line.replace(/^Moderator Directive:\s*/i, '')}
+                              </div>
+                            );
+                          }
+                          return <div key={idx}>{line}</div>;
+                        })}
+                      </div>
+                      {(notification.decisionId || notification.communityId) && (
+                        <div style={{ marginTop: '12px' }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNotificationClick(notification);
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 14px',
+                              borderRadius: '6px',
+                              background: 'rgba(0, 245, 255, 0.12)',
+                              border: '1px solid rgba(0, 245, 255, 0.35)',
+                              color: 'var(--neon-cyan)',
+                              fontSize: '0.82rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.background = 'rgba(0, 245, 255, 0.22)';
+                              e.currentTarget.style.boxShadow = '0 0 10px rgba(0, 245, 255, 0.3)';
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.background = 'rgba(0, 245, 255, 0.12)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            <Eye size={14} /> View Flagged Content →
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: '1.05rem', lineHeight: '1.5', color: isUnread ? 'white' : 'var(--text-secondary)' }}>
+                      {formatNotificationMessage(notification)}
+                    </p>
+                  )}
                   <span style={{ display: 'block', marginTop: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                     {notification.createdAt ? new Date(notification.createdAt).toLocaleString() : ''}
                   </span>
