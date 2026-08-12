@@ -48,12 +48,24 @@ const CreateDecision = () => {
         const user = userRes.data?.data;
         if (user) {
           const commsRes = await api.get('/api/communities');
-          if (commsRes.data?.success) {
-             const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${user.id}`) || "[]");
-             const allowed = commsRes.data.data.filter(c => 
-                 c.moderatorUsername === user.username || joinedList.includes(c.id) || user.role === 'ADMIN'
-             );
-             setMyCommunities(allowed);
+          if (commsRes.data?.success && Array.isArray(commsRes.data.data)) {
+            const list = commsRes.data.data;
+            const membershipStatuses = await Promise.all(
+              list.map(c => 
+                api.get(`/api/communities/${c.id}/membership`)
+                  .then(res => res.data?.data)
+                  .catch(() => null)
+              )
+            );
+
+            const allowed = list.filter((c, idx) => {
+              const status = membershipStatuses[idx];
+              const isModerator = c.moderatorUsername === user.username;
+              const isMember = status ? Boolean(status.isMember || status.member || status.isModerator || status.moderator) : false;
+              const joinedList = JSON.parse(localStorage.getItem(`joined_comm_${user.id}`) || "[]");
+              return isModerator || isMember || joinedList.includes(c.id) || user.role === 'ADMIN' || localStorage.getItem('role') === 'admin';
+            });
+            setMyCommunities(allowed);
           }
         }
       } catch (err) {

@@ -82,7 +82,6 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
     { id: 'users', name: 'User Management', path: '/admin/dashboard?tab=users', icon: Users },
     { id: 'communities', name: 'Community Management', path: '/admin/dashboard?tab=communities', icon: Globe },
     { id: 'boards', name: 'Decision Board Mgmt', path: '/admin/dashboard?tab=boards', icon: CheckSquare },
-    { id: 'polls', name: 'Poll Management', path: '/admin/dashboard?tab=polls', icon: BarChart2 },
     { id: 'moderation', name: 'Reports & Moderation', path: '/admin/dashboard?tab=moderation', icon: AlertTriangle },
     { id: 'notifications', name: 'Notifications', path: '/admin/dashboard?tab=notifications', icon: Bell },
     { id: 'feedback', name: 'User Feedbacks', path: '/feedback', icon: MessageSquare },
@@ -173,6 +172,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
           onClick={() => {
             localStorage.removeItem('role');
             localStorage.removeItem('token');
+            localStorage.removeItem('user');
             navigate('/login');
           }}
           title={isCollapsed ? "Logout" : undefined}

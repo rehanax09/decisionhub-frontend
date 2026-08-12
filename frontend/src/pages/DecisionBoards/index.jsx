@@ -193,34 +193,36 @@ const DecisionBoard = () => {
         </div>
       )}
 
-      {/* Floating Action Button */}
-      <Link to="/create-decision" className="pulse-button" style={{
-        position: 'fixed',
-        bottom: '40px',
-        right: '40px',
-        width: '60px',
-        height: '60px',
-        borderRadius: '50%',
-        background: 'var(--neon-cyan)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow: 'var(--glow-cyan)',
-        color: 'black',
-        transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease',
-        zIndex: 100
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'scale(1.15)';
-        e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 245, 255, 0.8), 0 0 35px rgba(0, 245, 255, 0.5)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'scale(1)';
-        e.currentTarget.style.boxShadow = 'var(--glow-cyan)';
-      }}
-      >
-        <Plus size={32} />
-      </Link>
+      {/* Floating Action Button (Non-Admin Users Only) */}
+      {!(currentUser?.role === 'ADMIN' || currentUser?.role === 'admin' || localStorage.getItem('role') === 'admin') && (
+        <Link to="/create-decision" className="pulse-button" style={{
+          position: 'fixed',
+          bottom: '40px',
+          right: '40px',
+          width: '60px',
+          height: '60px',
+          borderRadius: '50%',
+          background: 'var(--neon-cyan)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: 'var(--glow-cyan)',
+          color: 'black',
+          transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease',
+          zIndex: 100
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.15)';
+          e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 245, 255, 0.8), 0 0 35px rgba(0, 245, 255, 0.5)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = 'var(--glow-cyan)';
+        }}
+        >
+          <Plus size={32} />
+        </Link>
+      )}
     </div>
   );
 };

@@ -74,6 +74,13 @@ const CommunityDetails = () => {
         const comm = commRes.data?.data;
         if (comm) {
           setCommunity(comm);
+
+          const isMod = Boolean(user?.username && comm.moderatorUsername && user.username === comm.moderatorUsername);
+          const isUserAdmin = Boolean(
+            user?.role === 'ADMIN' || 
+            user?.role === 'ROLE_ADMIN' || 
+            localStorage.getItem('role')?.toLowerCase() === 'admin'
+          );
           
           const allDecisions = decRes.data?.success ? decRes.data.data : [];
           const commDecisions = allDecisions.filter(d => d.communityId === parseInt(id));
@@ -82,29 +89,37 @@ const CommunityDetails = () => {
           let joined = false;
           let pending = false;
 
+          const localJoinedList = user?.id ? JSON.parse(localStorage.getItem(`joined_comm_${user.id}`) || "[]") : [];
+          const isLocallyJoined = localJoinedList.includes(parseInt(id));
+
           if (status) {
-            const isMember = status.member !== undefined ? status.member : status.isMember;
-            const isPending = status.pending !== undefined ? status.pending : status.isPending;
-            const isModerator = status.moderator !== undefined ? status.moderator : status.isModerator;
-            joined = isMember || isModerator;
-            pending = isPending;
+            const isMember = Boolean(status.member !== undefined ? status.member : status.isMember);
+            const isPendingVal = Boolean(status.pending !== undefined ? status.pending : status.isPending);
+            const isModeratorVal = Boolean(status.moderator !== undefined ? status.moderator : status.isModerator);
+            joined = isMember || isModeratorVal || isLocallyJoined || isMod;
+            pending = isPendingVal && !joined;
           } else {
-            const isMod = user?.username === comm.moderatorUsername;
-            joined = isMod;
+            joined = isMod || isLocallyJoined;
           }
 
-          setIsJoined(!!joined);
-          setIsPending(!!pending);
+          setIsJoined(Boolean(joined));
+          setIsPending(Boolean(pending));
 
-          if (joined) {
+          if (joined && user?.id) {
+            if (!localJoinedList.includes(parseInt(id))) {
+              localStorage.setItem(`joined_comm_${user.id}`, JSON.stringify([...localJoinedList, parseInt(id)]));
+            }
+          }
+
+          const canViewDecisions = joined || isMod || isUserAdmin;
+
+          if (canViewDecisions) {
             setDecisions(commDecisions);
           } else {
             setDecisions([]);
           }
 
           // Check pending reports for moderator or admin
-          const isMod = user?.username === comm.moderatorUsername;
-          const isUserAdmin = user?.role === 'ADMIN' || localStorage.getItem('role') === 'admin';
           if (isMod || isUserAdmin) {
             api.get(`/api/communities/${id}/reports?status=PENDING`).then(rRes => {
               if (rRes.data?.success && Array.isArray(rRes.data.data)) {
@@ -136,14 +151,23 @@ const CommunityDetails = () => {
       } else {
         // Request Join
         const res = await api.post(`/api/communities/${id}/join`);
-        const detail = res.data?.data || "";
-        const msg = res.data?.message || "Join request processed.";
+        const detail = String(res.data?.data || "");
+        const msg = String(res.data?.message || "Join request processed.");
+        const combinedMsg = `${detail} ${msg}`.toLowerCase();
         
-        if (detail.toLowerCase().includes("joined")) {
+        if (combinedMsg.includes("joined")) {
           showToast("Joined community successfully!", "success");
           setIsJoined(true);
           setIsPending(false);
           setCommunity(prev => ({ ...prev, memberCount: prev.memberCount + 1 }));
+
+          if (currentUser?.id) {
+            const localList = JSON.parse(localStorage.getItem(`joined_comm_${currentUser.id}`) || "[]");
+            if (!localList.includes(parseInt(id))) {
+              localStorage.setItem(`joined_comm_${currentUser.id}`, JSON.stringify([...localList, parseInt(id)]));
+            }
+          }
+
           // Fetch decisions now that they are joined
           const decRes = await api.get('/api/decisions');
           if (decRes.data?.success) {
@@ -151,7 +175,7 @@ const CommunityDetails = () => {
             setDecisions(commDecisions);
           }
         } else {
-          showToast(detail || msg, "success");
+          showToast(detail || msg, "info");
           setIsPending(true);
         }
       }
@@ -423,9 +447,17 @@ const CommunityDetails = () => {
     localStorage.getItem('role')?.toLowerCase() === 'admin'
   );
 
+  const handleBack = () => {
+    if (isAdmin) {
+      navigate('/admin/dashboard?tab=communities');
+    } else {
+      navigate('/communities');
+    }
+  };
+
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-      <button onClick={() => navigate('/communities')} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', padding: '8px 16px' }}>
+      <button onClick={handleBack} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', padding: '8px 16px' }}>
         <ArrowLeft size={16} /> Back
       </button>
 
@@ -458,7 +490,7 @@ const CommunityDetails = () => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '200px' }}>
-            {(isModerator || isAdmin) ? (
+            {isModerator ? (
               <>
                 <button 
                   onClick={openReportsModal}
@@ -511,7 +543,7 @@ const CommunityDetails = () => {
                   onClick={openManageRequests}
                   style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-primary)', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s ease', fontFamily: "'Outfit', sans-serif" }}
                 >
-                  Manage Invitations
+                  Join Requests
                 </button>
                 <button 
                   onClick={openManageMembers}
@@ -519,6 +551,39 @@ const CommunityDetails = () => {
                 >
                   View Members
                 </button>
+                <button 
+                  onClick={() => setShowDeleteConfirm(true)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid #ef4444',
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    color: '#ef4444',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    fontFamily: "'Outfit', sans-serif",
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 0 12px rgba(239, 68, 68, 0.25)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#ef4444';
+                    e.currentTarget.style.color = '#ffffff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                    e.currentTarget.style.color = '#ef4444';
+                  }}
+                >
+                  <Trash2 size={16} /> Delete Community
+                </button>
+              </>
+            ) : isAdmin ? (
+              <>
                 <button 
                   onClick={() => setShowDeleteConfirm(true)}
                   style={{
@@ -687,7 +752,7 @@ const CommunityDetails = () => {
         <h2 style={{ fontSize: '1.8rem', fontFamily: 'Outfit', margin: 0 }}>Community Decisions</h2>
       </div>
 
-      {!isJoined ? (
+      {!(isJoined || isModerator || isAdmin) ? (
         <div className="glass-panel" style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }}>
           <Shield size={48} style={{ opacity: 0.5, marginBottom: '16px' }} />
           <h3>Private Boards</h3>

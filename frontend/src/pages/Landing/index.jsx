@@ -7,37 +7,84 @@ const Landing = () => {
   return (
     <div style={{ paddingBottom: '100px' }}>
       
-      {/* Hero Section */}
-      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '85vh', padding: '20px', textAlign: 'center', overflow: 'hidden' }}>
-        {/* Animated Background Shapes */}
-        <div style={{ position: 'absolute', width: '300px', height: '300px', background: 'var(--neon-cyan)', filter: 'blur(150px)', opacity: 0.08, top: '20%', left: '10%' }}></div>
-        <div style={{ position: 'absolute', width: '250px', height: '250px', background: 'var(--neon-pink)', filter: 'blur(150px)', opacity: 0.08, bottom: '20%', right: '10%' }}></div>
+      {/* Hero Section with Dual Curved Neon Arcs & Center Horizon Flare */}
+      <div style={{
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '85vh',
+        padding: '100px 20px 80px 20px',
+        textAlign: 'center',
+        overflow: 'hidden',
+        background: 'radial-gradient(ellipse at center, #100726 0%, #06020e 70%, #030107 100%)'
+      }}>
+        {/* Top Curved Dual Neon Light Arc SVG */}
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', pointerEvents: 'none', opacity: 0.55, zIndex: 1 }}>
+          <svg viewBox="0 0 1440 240" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: 'auto', display: 'block' }}>
+            <defs>
+              <linearGradient id="topArcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#ff00c8" />
+                <stop offset="50%" stopColor="#9000ff" />
+                <stop offset="100%" stopColor="#00f5ff" />
+              </linearGradient>
+              <filter id="topArcGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4" result="blur1" />
+                <feGaussianBlur stdDeviation="10" result="blur2" />
+                <feMerge>
+                  <feMergeNode in="blur2" />
+                  <feMergeNode in="blur1" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <path d="M -100 -60 C 350 140, 1090 140, 1540 -60" stroke="url(#topArcGrad)" strokeWidth="2.8" filter="url(#topArcGlow)" />
+            <path d="M -100 -60 C 350 140, 1090 140, 1540 -60" stroke="#ffffff" strokeWidth="1.0" strokeOpacity="0.35" />
+          </svg>
+        </div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '20px', background: 'rgba(0, 245, 255, 0.06)', border: '1px solid rgba(0, 245, 255, 0.15)', marginBottom: '20px' }}
-        >
-          <Zap size={14} color="var(--neon-cyan)" />
-          <span style={{ fontSize: '0.78rem', letterSpacing: '1px', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--neon-cyan)' }}>DecisionHub v2.0</span>
-        </motion.div>
+        {/* Bottom Curved Dual Neon Light Arc SVG */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', pointerEvents: 'none', opacity: 0.55, zIndex: 1 }}>
+          <svg viewBox="0 0 1440 240" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: 'auto', display: 'block' }}>
+            <defs>
+              <linearGradient id="bottomArcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#00f5ff" />
+                <stop offset="50%" stopColor="#9000ff" />
+                <stop offset="100%" stopColor="#ff00c8" />
+              </linearGradient>
+              <filter id="bottomArcGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4" result="blur1" />
+                <feGaussianBlur stdDeviation="10" result="blur2" />
+                <feMerge>
+                  <feMergeNode in="blur2" />
+                  <feMergeNode in="blur1" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <path d="M -100 300 C 350 100, 1090 100, 1540 300" stroke="url(#bottomArcGrad)" strokeWidth="2.8" filter="url(#bottomArcGlow)" />
+            <path d="M -100 300 C 350 100, 1090 100, 1540 300" stroke="#ffffff" strokeWidth="1.0" strokeOpacity="0.35" />
+          </svg>
+        </div>
 
         <motion.h1 
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}
-          style={{ fontSize: '4.2rem', marginBottom: '20px', maxWidth: '900px', lineHeight: '1.15', fontFamily: 'Outfit', fontWeight: '800' }}
+          style={{ fontSize: '4.2rem', marginBottom: '20px', maxWidth: '900px', lineHeight: '1.15', fontFamily: 'Outfit', fontWeight: '800', position: 'relative', zIndex: 2 }}
         >
           Collaborative Decision Making <br /><span className="text-gradient">Platform</span>
         </motion.h1>
         
         <motion.p 
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}
-          style={{ color: 'var(--text-secondary)', fontSize: '1.3rem', maxWidth: '600px', marginBottom: '40px', lineHeight: '1.6' }}
+          style={{ color: 'var(--text-secondary)', fontSize: '1.3rem', maxWidth: '600px', marginBottom: '40px', lineHeight: '1.6', position: 'relative', zIndex: 2 }}
         >
           Create Decision • Vote • Compare • Decide
         </motion.p>
         
         <motion.div 
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}
-          style={{ display: 'flex', gap: '16px' }}
+          style={{ display: 'flex', gap: '16px', position: 'relative', zIndex: 2 }}
         >
           <Link to="/login" className="btn-primary" style={{ padding: '12px 28px', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: 'var(--glow-cyan)' }}>
             Get Started <ArrowRight size={16} />
@@ -46,7 +93,7 @@ const Landing = () => {
       </div>
 
       {/* Features Section */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '80px 20px' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px 80px 20px' }}>
         <div style={{ textAlign: 'center', marginBottom: '60px' }} data-aos="fade-up">
           <h2 style={{ fontSize: '2.8rem', fontFamily: 'Outfit', fontWeight: '700' }}>Platform Capabilities</h2>
         </div>
@@ -85,36 +132,6 @@ const Landing = () => {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Popular Decisions / Testimonials */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '80px 20px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '60px' }} data-aos="fade-up">
-          <h2 style={{ fontSize: '2.8rem', fontFamily: 'Outfit', fontWeight: '700' }}>Trending on the Grid</h2>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '30px' }}>
-          <div className="glass-panel" data-aos="fade-up" style={{ padding: '30px', borderRadius: '18px', border: '1px solid var(--glass-border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.3rem', fontWeight: '600' }}>MBA vs Corporate Job</h3>
-              <span style={{ color: 'var(--neon-cyan)', fontSize: '0.88rem', fontWeight: 'bold' }}>12.4K Votes</span>
-            </div>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.92rem', lineHeight: '1.6' }}>A fierce debate on the ROI of higher education vs immediate industry experience.</p>
-            <div style={{ height: '4px', background: 'var(--glass-border)', borderRadius: '2px', display: 'flex' }}>
-              <div style={{ width: '60%', background: 'var(--neon-cyan)', borderRadius: '2px' }}></div>
-              <div style={{ width: '40%', background: 'var(--neon-pink)', borderRadius: '2px' }}></div>
-            </div>
-          </div>
-          <div className="glass-panel" data-aos="fade-up" data-aos-delay="100" style={{ padding: '30px', borderRadius: '18px', border: '1px solid var(--glass-border)' }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=100&auto=format&fit=crop" alt="Avatar" style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--neon-cyan)' }} />
-              <div>
-                <h4 style={{ fontSize: '1rem', fontWeight: '600' }}>Sarah Jenkins</h4>
-                <p style={{ color: 'var(--neon-cyan)', fontSize: '0.82rem' }}>Product Lead</p>
-              </div>
-            </div>
-            <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.9rem', lineHeight: '1.6' }}>"DecisionHub completely changed how our team aligns on architecture choices. The radar charts make trade-offs painfully obvious in the best way possible."</p>
           </div>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Star, MessageSquare, AlertCircle, FileText,
   Trash2, Send, ShieldCheck, ChevronDown, ChevronUp, Loader2,
@@ -327,7 +328,26 @@ const Feedback = () => {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
 
-  const [activeSubTab, setActiveSubTab] = useState(isAdmin ? 'all' : 'submit');
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const tabParam = queryParams.get('tab');
+
+  const resolveTab = (param) => {
+    if (!param) return isAdmin ? 'all' : 'submit';
+    const p = param.toLowerCase();
+    if (p === 'history' || p === 'my' || p === 'my_history' || p === 'my-history') return 'history';
+    if (p === 'submissions' || p === 'all') return 'all';
+    if (p === 'submit') return 'submit';
+    return isAdmin ? 'all' : 'submit';
+  };
+
+  const [activeSubTab, setActiveSubTab] = useState(() => resolveTab(tabParam));
+
+  useEffect(() => {
+    if (tabParam) {
+      setActiveSubTab(resolveTab(tabParam));
+    }
+  }, [location.search]);
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');

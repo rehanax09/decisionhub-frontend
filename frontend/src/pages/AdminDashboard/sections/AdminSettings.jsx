@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
-import { Tag, X, Plus, Save, Palette } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Tag, Plus, X, Palette, AlertTriangle, LogOut, UserX, Trash2, CheckCircle2, Save, Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import api from '../../../api/api';
+import { useToast } from '../../../context/ToastContext';
+import ConfirmModal from '../../../components/ConfirmModal';
 
 const THEMES = [
   {
@@ -53,15 +57,34 @@ const THEMES = [
 ];
 
 const AdminSettings = () => {
-  const [tags,         setTags]         = useState(['Technology', 'Finance', 'Career', 'Lifestyle', 'Travel', 'Health', 'Education']);
-  const [newTag,       setNewTag]       = useState('');
-  const [platform,     setPlatform]     = useState({ maintenance: false, allowRegistration: true, requireEmailVerify: false });
-  const [email,        setEmail]        = useState({ fromAddress: 'noreply@decisionhub.com', smtpHost: 'smtp.gmail.com', smtpPort: '587' });
-  const [selectedTheme, setSelectedTheme] = useState(() => localStorage.getItem('admin-theme') || 'neon-dark');
-  const [saved,        setSaved]        = useState(false);
+  const navigate = useNavigate();
+  const { showToast } = useToast();
 
-  const addTag    = () => { if (newTag.trim() && !tags.includes(newTag.trim())) { setTags([...tags, newTag.trim()]); setNewTag(''); } };
-  const removeTag = (t) => setTags(tags.filter(x => x !== t));
+  // ─── Password Change State ─────────────────────────────────────────
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  // ─── 1. Category State ────────────────────────────────────────────
+  const [categories, setCategories] = useState(() => {
+    const saved = localStorage.getItem('decisionhub_admin_categories');
+    return saved ? JSON.parse(saved) : ['Technology', 'Finance', 'Career', 'Lifestyle', 'Education', 'General'];
+  });
+  const [newCat, setNewCat] = useState('');
+
+  // ─── 2. Theme State ───────────────────────────────────────────────
+  const [selectedTheme, setSelectedTheme] = useState(() => localStorage.getItem('admin-theme') || 'neon-dark');
+
+  // ─── 3. Danger Zone Modal State ──────────────────────────────────
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    actionType: null
+  });
 
   const applyThemeColors = (themeId) => {
     const theme = THEMES.find(t => t.id === themeId);
@@ -72,120 +95,248 @@ const AdminSettings = () => {
     }
   };
 
-  const save = async () => {
-    setSaved(true);
-    // Persist and apply selected theme
-    localStorage.setItem('admin-theme', selectedTheme);
+  useEffect(() => {
     applyThemeColors(selectedTheme);
-    await new Promise(r => setTimeout(r, 1000));
-    setSaved(false);
+  }, [selectedTheme]);
+
+  // Category Add / Remove Handlers
+  const handleAddCategory = () => {
+    if (!newCat.trim()) return;
+    const cat = newCat.trim();
+    if (categories.includes(cat)) {
+      showToast(`Category '${cat}' already exists.`, 'warning');
+      return;
+    }
+    const updated = [...categories, cat];
+    setCategories(updated);
+    setNewCat('');
+    localStorage.setItem('decisionhub_admin_categories', JSON.stringify(updated));
+    showToast(`Category '${cat}' added successfully!`, 'success');
+  };
+
+  const handleRemoveCategory = (cat) => {
+    if (categories.length <= 2) {
+      showToast('Minimum 2 categories required for decision boards.', 'warning');
+      return;
+    }
+    const updated = categories.filter(c => c !== cat);
+    setCategories(updated);
+    localStorage.setItem('decisionhub_admin_categories', JSON.stringify(updated));
+    showToast(`Category '${cat}' removed.`, 'info');
+  };
+
+  // Theme Save Handler
+  const handleSelectTheme = (themeId) => {
+    setSelectedTheme(themeId);
+    localStorage.setItem('admin-theme', themeId);
+    applyThemeColors(themeId);
+    showToast(`Theme updated to ${THEMES.find(t => t.id === themeId)?.name}!`, 'success');
+  };
+
+  // ─── Password Change Handler ──────────────────────────────────────
+  const handleChangePassword = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!passwordForm.currentPassword) {
+      showToast("Please enter your current password.", "warning");
+      return;
+    }
+    if (passwordForm.newPassword.length < 6) {
+      showToast("New password must be at least 6 characters.", "warning");
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      showToast("New password and confirm password do not match.", "warning");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      await api.post('/api/users/change-password', {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword
+      });
+
+      showToast("Admin password updated successfully!", "success");
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      console.error("Failed to update admin password:", err);
+      showToast(err.response?.data?.message || "Failed to update password.", "error");
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  // ─── Danger Zone Actions ──────────────────────────────────────────
+  
+  // 1. Logout from all devices
+  const handleLogoutAllDevices = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('user');
+    showToast('Logged out from all devices successfully.', 'info');
+    navigate('/login');
+  };
+
+  // 2. Trigger Deactivate Account Confirmation
+  const promptDeactivateAccount = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Deactivate Admin Account',
+      message: 'Are you sure you want to deactivate your admin account? You will be signed out immediately and administrative access will be suspended.',
+      actionType: 'DEACTIVATE'
+    });
+  };
+
+  // 3. Trigger Delete Account Confirmation
+  const promptDeleteAccount = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Admin Account',
+      message: 'WARNING: This action is permanent and cannot be undone. All local admin tokens and credentials will be removed.',
+      actionType: 'DELETE'
+    });
+  };
+
+  // Confirm Modal Handler
+  const handleConfirmAction = async () => {
+    const action = confirmModal.actionType;
+    setConfirmModal({ isOpen: false, title: '', message: '', actionType: null });
+
+    if (action === 'DEACTIVATE') {
+      try {
+        await api.post('/api/users/me/deactivate').catch(() => null);
+      } catch (e) {}
+      localStorage.clear();
+      showToast('Admin account deactivated. Signed out.', 'warning');
+      navigate('/login');
+    } else if (action === 'DELETE') {
+      try {
+        await api.delete('/api/users/me').catch(() => null);
+      } catch (e) {}
+      localStorage.clear();
+      showToast('Admin account deleted permanently.', 'error');
+      navigate('/login');
+    }
+  };
+
+  const cardStyle = {
+    padding: '28px',
+    borderRadius: '16px',
+    background: 'rgba(18, 18, 24, 0.65)',
+    border: '1px solid var(--glass-border)',
+    backdropFilter: 'blur(12px)'
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', maxWidth: '800px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', maxWidth: '850px' }} className="animate-fade-in">
 
-      {/* Categories / Tags */}
-      <div className="glass-panel" style={{ padding: '28px' }}>
-        <h3 style={{ margin: '0 0 20px 0', fontFamily: 'Outfit', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Tag color="var(--neon-cyan)" size={18} /> Categories & Tags
-        </h3>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
-          {tags.map(t => (
-            <span key={t} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', background: 'rgba(0,245,255,0.1)', color: 'var(--neon-cyan)', border: '1px solid rgba(0,245,255,0.2)', fontSize: '0.85rem' }}>
-              {t}
-              <button onClick={() => removeTag(t)} style={{ background: 'none', border: 'none', color: 'var(--neon-cyan)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', opacity: 0.6 }}><X size={12}/></button>
+      {/* ── SECTION 1: Decision Board Categories ────────────────────── */}
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+          <Tag color="var(--neon-cyan)" size={20} />
+          <h3 style={{ margin: 0, fontFamily: 'Outfit', fontSize: '1.2rem' }}>Decision Board Categories</h3>
+        </div>
+        <p style={{ margin: '0 0 20px 0', fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+          Manage available categories for decision boards published across platform feeds.
+        </p>
+
+        {/* Existing Category Pills */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+          {categories.map(cat => (
+            <span 
+              key={cat} 
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 14px',
+                borderRadius: '20px',
+                background: 'rgba(0, 245, 255, 0.1)',
+                color: 'var(--neon-cyan)',
+                border: '1px solid rgba(0, 245, 255, 0.3)',
+                fontSize: '0.86rem',
+                fontWeight: 600
+              }}
+            >
+              {cat}
+              <button 
+                onClick={() => handleRemoveCategory(cat)} 
+                title={`Remove ${cat}`}
+                style={{ background: 'none', border: 'none', color: 'var(--neon-cyan)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', opacity: 0.7 }}
+              >
+                <X size={13} />
+              </button>
             </span>
           ))}
         </div>
+
+        {/* Add New Category Input */}
         <div style={{ display: 'flex', gap: '10px' }}>
-          <input value={newTag} onChange={e => setNewTag(e.target.value)} onKeyDown={e => e.key === 'Enter' && addTag()}
-            placeholder="Add new category…"
-            style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', outline: 'none', fontSize: '0.9rem' }}
-            onFocus={e => e.target.style.border = '1px solid var(--neon-cyan)'}
-            onBlur={e  => e.target.style.border = '1px solid var(--glass-border)'} />
-          <button onClick={addTag} className="btn-primary" style={{ padding: '10px 18px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Plus size={16} /> Add
+          <input 
+            type="text"
+            value={newCat} 
+            onChange={e => setNewCat(e.target.value)} 
+            onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
+            placeholder="Add new category (e.g. Design, Mobile)..."
+            style={{
+              flex: 1,
+              padding: '11px 14px',
+              borderRadius: '10px',
+              border: '1px solid var(--glass-border)',
+              background: 'rgba(18, 18, 24, 0.85)',
+              color: 'var(--text-primary)',
+              outline: 'none',
+              fontSize: '0.9rem'
+            }}
+          />
+          <button 
+            onClick={handleAddCategory} 
+            className="btn-primary" 
+            style={{ padding: '11px 22px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem' }}
+          >
+            <Plus size={16} /> Add Category
           </button>
         </div>
       </div>
 
-      {/* Platform Settings */}
-      <div className="glass-panel" style={{ padding: '28px' }}>
-        <h3 style={{ margin: '0 0 20px 0', fontFamily: 'Outfit', fontSize: '1.1rem' }}>⚙️ Platform Settings</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {[
-            { key: 'maintenance',         label: 'Maintenance Mode',              desc: 'Blocks all non-admin access to the platform.' },
-            { key: 'allowRegistration',   label: 'Allow New Registrations',       desc: 'Allows new users to sign up.' },
-            { key: 'requireEmailVerify',  label: 'Require Email Verification',    desc: 'Users must verify email before accessing the platform.' },
-          ].map(({ key, label, desc }) => (
-            <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)' }}>
-              <div>
-                <p style={{ margin: 0, fontWeight: '500', fontSize: '0.95rem' }}>{label}</p>
-                <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{desc}</p>
-              </div>
-              <div onClick={() => setPlatform(p => ({ ...p, [key]: !p[key] }))}
-                style={{ width: '44px', height: '24px', borderRadius: '12px', background: platform[key] ? 'var(--neon-cyan)' : 'var(--glass-border)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
-                <div style={{ position: 'absolute', top: '3px', left: platform[key] ? '22px' : '3px', width: '18px', height: '18px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
-              </div>
-            </div>
-          ))}
+      {/* ── SECTION 2: Theme Customization ─────────────────────────── */}
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+          <Palette color="var(--neon-pink)" size={20} />
+          <h3 style={{ margin: 0, fontFamily: 'Outfit', fontSize: '1.2rem' }}>Theme Customization</h3>
         </div>
-      </div>
+        <p style={{ margin: '0 0 20px 0', fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+          Customize visual accent colors and glow effects for the admin console and dashboard interface.
+        </p>
 
-      {/* Email Settings */}
-      <div className="glass-panel" style={{ padding: '28px' }}>
-        <h3 style={{ margin: '0 0 20px 0', fontFamily: 'Outfit', fontSize: '1.1rem' }}>📧 Email Settings</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {[
-            { key: 'fromAddress', label: 'From Address',  placeholder: 'noreply@decisionhub.com' },
-            { key: 'smtpHost',    label: 'SMTP Host',     placeholder: 'smtp.gmail.com'          },
-            { key: 'smtpPort',    label: 'SMTP Port',     placeholder: '587'                     },
-          ].map(({ key, label, placeholder }) => (
-            <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '500' }}>{label}</label>
-              <input value={email[key]} onChange={e => setEmail(em => ({ ...em, [key]: e.target.value }))} placeholder={placeholder}
-                style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', outline: 'none', fontSize: '0.9rem' }}
-                onFocus={e => e.target.style.border = '1px solid var(--neon-cyan)'}
-                onBlur={e  => e.target.style.border = '1px solid var(--glass-border)'} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Theme Settings (Optional) */}
-      <div className="glass-panel" style={{ padding: '28px' }}>
-        <h3 style={{ margin: '0 0 20px 0', fontFamily: 'Outfit', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Palette color="var(--neon-cyan)" size={18} /> Theme Settings (Optional)
-        </h3>
-        <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Customize the color palette and glows of the admin console and user dashboard.</p>
-        
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
           {THEMES.map(theme => {
             const isSelected = selectedTheme === theme.id;
             return (
               <div 
                 key={theme.id}
-                onClick={() => {
-                  setSelectedTheme(theme.id);
-                  // Preview immediately
-                  applyThemeColors(theme.id);
-                }}
+                onClick={() => handleSelectTheme(theme.id)}
                 style={{
-                  padding: '16px',
-                  borderRadius: '12px',
-                  background: isSelected ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',
+                  padding: '18px',
+                  borderRadius: '14px',
+                  background: isSelected ? 'rgba(0, 245, 255, 0.08)' : 'rgba(255, 255, 255, 0.02)',
                   border: isSelected ? '2px solid var(--neon-cyan)' : '1px solid var(--glass-border)',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '12px'
+                  gap: '12px',
+                  boxShadow: isSelected ? '0 0 12px rgba(0, 245, 255, 0.2)' : 'none'
                 }}
               >
-                <span style={{ fontSize: '0.88rem', fontWeight: '600', color: isSelected ? 'var(--neon-cyan)' : 'var(--text-primary)' }}>{theme.name}</span>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: theme.cyan, boxShadow: `0 0 6px ${theme.cyan}` }} />
-                  <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: theme.pink, boxShadow: `0 0 6px ${theme.pink}` }} />
+                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: isSelected ? 'var(--neon-cyan)' : 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>{theme.name}</span>
+                  {isSelected && <CheckCircle2 size={16} color="var(--neon-cyan)" />}
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: theme.cyan, boxShadow: `0 0 8px ${theme.cyan}` }} />
+                  <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: theme.pink, boxShadow: `0 0 8px ${theme.pink}` }} />
                 </div>
               </div>
             );
@@ -193,11 +344,197 @@ const AdminSettings = () => {
         </div>
       </div>
 
-      {/* Save Button */}
-      <button onClick={save} className="btn-primary" disabled={saved}
-        style={{ padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: 'var(--glow-cyan)', opacity: saved ? 0.7 : 1 }}>
-        <Save size={18} /> {saved ? 'Settings Saved!' : 'Save All Settings'}
-      </button>
+      {/* ── SECTION 3: Admin Security & Password Change ─────────────── */}
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+          <Lock color="var(--neon-cyan)" size={20} />
+          <h3 style={{ margin: 0, fontFamily: 'Outfit', fontSize: '1.2rem' }}>Admin Security & Password</h3>
+        </div>
+        <p style={{ margin: '0 0 20px 0', fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+          Update your system administrator login credentials.
+        </p>
+
+        <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>Current Password</label>
+            <input 
+              type="password" 
+              value={passwordForm.currentPassword}
+              onChange={e => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
+              placeholder="••••••••"
+              style={{
+                width: '100%',
+                padding: '11px 14px',
+                borderRadius: '10px',
+                border: '1px solid var(--glass-border)',
+                background: 'rgba(18, 18, 24, 0.85)',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                fontSize: '0.9rem'
+              }}
+              required
+            />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div>
+              <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>New Password</label>
+              <input 
+                type="password" 
+                value={passwordForm.newPassword}
+                onChange={e => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+                placeholder="••••••••"
+                style={{
+                  width: '100%',
+                  padding: '11px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--glass-border)',
+                  background: 'rgba(18, 18, 24, 0.85)',
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                  fontSize: '0.9rem'
+                }}
+                required
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>Confirm New Password</label>
+              <input 
+                type="password" 
+                value={passwordForm.confirmPassword}
+                onChange={e => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+                placeholder="••••••••"
+                style={{
+                  width: '100%',
+                  padding: '11px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--glass-border)',
+                  background: 'rgba(18, 18, 24, 0.85)',
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                  fontSize: '0.9rem'
+                }}
+                required
+              />
+            </div>
+          </div>
+          <button 
+            type="submit" 
+            disabled={isUpdatingPassword}
+            className="btn-primary" 
+            style={{ alignSelf: 'flex-start', padding: '10px 22px', fontSize: '0.88rem', marginTop: '6px' }}
+          >
+            {isUpdatingPassword ? 'Updating Password...' : 'Update Password'}
+          </button>
+        </form>
+      </div>
+
+      {/* ── SECTION 4: Danger Zone (Limited for Admin) ─────────────── */}
+      <div style={{ ...cardStyle, border: '1px solid rgba(255, 0, 127, 0.4)', background: 'rgba(255, 0, 127, 0.03)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+          <AlertTriangle color="var(--neon-pink)" size={20} />
+          <h3 style={{ margin: 0, fontFamily: 'Outfit', fontSize: '1.2rem', color: 'var(--neon-pink)' }}>Danger Zone</h3>
+        </div>
+        <p style={{ margin: '0 0 20px 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          High-privilege account security actions. Exercise caution when performing these actions.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          
+          {/* Action 1: Logout from all devices */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'rgba(18, 18, 24, 0.75)', borderRadius: '12px', border: '1px solid var(--glass-border)', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <LogOut size={16} color="var(--neon-cyan)" /> Logout from all devices
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                Sign out active session tokens across all browser sessions.
+              </div>
+            </div>
+            <button 
+              onClick={handleLogoutAllDevices}
+              className="btn-secondary"
+              style={{ fontSize: '0.84rem', padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <LogOut size={14} /> Logout Devices
+            </button>
+          </div>
+
+          {/* Action 2: Deactivate admin account */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'rgba(255, 171, 0, 0.05)', borderRadius: '12px', border: '1px solid rgba(255, 171, 0, 0.25)', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '0.92rem', color: '#ffab00', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <UserX size={16} color="#ffab00" /> Deactivate admin account
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                Temporarily suspend administrative access and sign out.
+              </div>
+            </div>
+            <button 
+              onClick={promptDeactivateAccount}
+              style={{
+                background: 'rgba(255, 171, 0, 0.15)',
+                border: '1px solid rgba(255, 171, 0, 0.4)',
+                color: '#ffab00',
+                borderRadius: '8px',
+                padding: '8px 16px',
+                fontSize: '0.84rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <UserX size={14} /> Deactivate Account
+            </button>
+          </div>
+
+          {/* Action 3: Delete account */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'rgba(255, 0, 127, 0.08)', borderRadius: '12px', border: '1px solid rgba(255, 0, 127, 0.3)', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--neon-pink)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Trash2 size={16} color="var(--neon-pink)" /> Delete account
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                Permanently remove admin session credentials and local account data.
+              </div>
+            </div>
+            <button 
+              onClick={promptDeleteAccount}
+              style={{
+                background: 'rgba(255, 0, 127, 0.2)',
+                border: '1px solid rgba(255, 0, 127, 0.5)',
+                color: 'var(--neon-pink)',
+                borderRadius: '8px',
+                padding: '8px 16px',
+                fontSize: '0.84rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 0 10px rgba(255, 0, 127, 0.2)',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Trash2 size={14} /> Delete Account
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Confirmation Modal for Deactivate / Delete Account */}
+      {confirmModal.isOpen && (
+        <ConfirmModal 
+          isOpen={confirmModal.isOpen}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          onConfirm={handleConfirmAction}
+          onCancel={() => setConfirmModal({ isOpen: false, title: '', message: '', actionType: null })}
+        />
+      )}
 
     </div>
   );

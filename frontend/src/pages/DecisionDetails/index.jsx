@@ -84,32 +84,34 @@ const CommentItem = ({
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '4px',
+              gap: '5px',
               background: 'rgba(0, 245, 255, 0.12)',
-              border: '1px solid rgba(0, 245, 255, 0.3)',
+              border: '1px solid rgba(0, 245, 255, 0.35)',
               borderRadius: '12px',
-              padding: '2px 8px',
-              fontSize: '0.72rem',
+              padding: '3px 10px',
+              fontSize: '0.74rem',
               color: 'var(--neon-cyan)',
-              fontWeight: 600
+              fontWeight: 600,
+              boxShadow: '0 0 10px rgba(0, 245, 255, 0.15)'
             }}>
-              <Pin size={11} /> Pinned by Moderator
+              <Pin size={12} style={{ transform: 'rotate(45deg)' }} /> Pinned Comment
             </div>
           )}
           {isHidden && isModerator && (
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '4px',
+              gap: '5px',
               background: 'rgba(255, 171, 0, 0.15)',
               border: '1px solid rgba(255, 171, 0, 0.4)',
               borderRadius: '12px',
-              padding: '2px 8px',
-              fontSize: '0.72rem',
+              padding: '3px 10px',
+              fontSize: '0.74rem',
               color: '#ffab00',
-              fontWeight: 600
+              fontWeight: 600,
+              boxShadow: '0 0 10px rgba(255, 171, 0, 0.15)'
             }}>
-              <EyeOff size={11} /> Hidden from Public (Moderator View)
+              <EyeOff size={12} /> Hidden from Public (Moderator View)
             </div>
           )}
         </div>
@@ -126,22 +128,21 @@ const CommentItem = ({
               <button 
                 onClick={() => handleTogglePinComment(commentId)}
                 style={{
-                  background: isPinned ? 'rgba(0, 245, 255, 0.12)' : 'transparent',
-                  border: isPinned ? '1px solid rgba(0, 245, 255, 0.3)' : '1px solid transparent',
-                  color: isPinned ? 'var(--neon-cyan)' : 'var(--text-secondary)',
+                  background: isPinned ? 'rgba(0, 245, 255, 0.2)' : 'rgba(0, 245, 255, 0.08)',
+                  border: isPinned ? '1px solid rgba(0, 245, 255, 0.5)' : '1px solid rgba(0, 245, 255, 0.25)',
+                  color: 'var(--neon-cyan)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  padding: '3px 7px',
-                  borderRadius: '6px',
-                  fontSize: '0.75rem',
-                  transition: 'all 0.2s'
+                  justifyContent: 'center',
+                  padding: '5px 7px',
+                  borderRadius: '7px',
+                  boxShadow: isPinned ? '0 0 10px rgba(0, 245, 255, 0.3)' : 'none',
+                  transition: 'all 0.2s ease'
                 }}
                 title={isPinned ? "Unpin Comment" : "Pin Comment to Top"}
               >
-                <Pin size={12} style={{ transform: isPinned ? 'rotate(45deg)' : 'none' }} />
-                <span>{isPinned ? 'Unpin' : 'Pin'}</span>
+                <Pin size={14} style={{ transform: isPinned ? 'rotate(45deg)' : 'none' }} />
               </button>
             )}
 
@@ -150,22 +151,21 @@ const CommentItem = ({
               <button 
                 onClick={() => handleToggleHideComment(commentId)}
                 style={{
-                  background: isHidden ? 'rgba(255, 171, 0, 0.15)' : 'transparent',
-                  border: isHidden ? '1px solid rgba(255, 171, 0, 0.35)' : '1px solid transparent',
-                  color: isHidden ? '#ffab00' : 'var(--text-secondary)',
+                  background: isHidden ? 'rgba(255, 171, 0, 0.22)' : 'rgba(255, 171, 0, 0.08)',
+                  border: isHidden ? '1px solid rgba(255, 171, 0, 0.55)' : '1px solid rgba(255, 171, 0, 0.25)',
+                  color: '#ffab00',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  padding: '3px 7px',
-                  borderRadius: '6px',
-                  fontSize: '0.75rem',
-                  transition: 'all 0.2s'
+                  justifyContent: 'center',
+                  padding: '5px 7px',
+                  borderRadius: '7px',
+                  boxShadow: isHidden ? '0 0 10px rgba(255, 171, 0, 0.3)' : 'none',
+                  transition: 'all 0.2s ease'
                 }}
                 title={isHidden ? "Unhide Comment (Make visible to everyone)" : "Hide Comment"}
               >
-                {isHidden ? <Eye size={12} /> : <EyeOff size={12} />}
-                <span>{isHidden ? 'Unhide' : 'Hide'}</span>
+                {isHidden ? <Eye size={14} /> : <EyeOff size={14} />}
               </button>
             )}
 
@@ -173,10 +173,21 @@ const CommentItem = ({
             {isOwner && !isHidden && (
               <button 
                 onClick={() => { setEditingCommentId(commentId); setEditCommentText(text); }}
-                style={{ background: 'transparent', border: 'none', color: 'var(--neon-cyan)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '3px', borderRadius: '4px' }}
+                style={{ 
+                  background: 'rgba(168, 85, 247, 0.12)', 
+                  border: '1px solid rgba(168, 85, 247, 0.3)', 
+                  color: '#a855f7', 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  padding: '5px 7px', 
+                  borderRadius: '7px',
+                  transition: 'all 0.2s ease'
+                }}
                 title="Edit Comment"
               >
-                <Edit3 size={depth === 0 ? 14 : 12} />
+                <Edit3 size={14} />
               </button>
             )}
 
@@ -184,34 +195,43 @@ const CommentItem = ({
             {canDelete && (
               <button 
                 onClick={() => handleDeleteCommentClick(commentId)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--neon-pink)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '3px', borderRadius: '4px' }}
-                title="Delete Comment"
-              >
-                <Trash2 size={depth === 0 ? 14 : 12} />
-              </button>
-            )}
-
-            {/* Report Comment (Non-owner only) */}
-            {!isOwner && handleReportCommentClick && (
-              <button 
-                onClick={() => handleReportCommentClick(comment)}
                 style={{ 
-                  background: 'transparent', 
-                  border: 'none', 
-                  color: 'var(--text-secondary)', 
+                  background: 'rgba(255, 0, 127, 0.12)', 
+                  border: '1px solid rgba(255, 0, 127, 0.3)', 
+                  color: 'var(--neon-pink)', 
                   cursor: 'pointer', 
                   display: 'flex', 
                   alignItems: 'center', 
-                  padding: '3px', 
-                  borderRadius: '4px',
-                  opacity: 0.7,
-                  transition: 'all 0.2s'
+                  justifyContent: 'center',
+                  padding: '5px 7px', 
+                  borderRadius: '7px',
+                  transition: 'all 0.2s ease'
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#ff6b6b'; e.currentTarget.style.opacity = '1'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.opacity = '0.7'; }}
+                title="Delete Comment"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+
+            {/* Report Comment (Non-owner, Non-admin users only) */}
+            {!isOwner && !isAdmin && handleReportCommentClick && (
+              <button 
+                onClick={() => handleReportCommentClick(comment)}
+                style={{ 
+                  background: 'rgba(255, 107, 107, 0.12)', 
+                  border: '1px solid rgba(255, 107, 107, 0.3)', 
+                  color: '#ff6b6b', 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  padding: '5px 7px', 
+                  borderRadius: '7px',
+                  transition: 'all 0.2s ease'
+                }}
                 title="Report Comment"
               >
-                <Flag size={depth === 0 ? 14 : 12} />
+                <Flag size={14} />
               </button>
             )}
           </div>
@@ -676,15 +696,35 @@ const DecisionDetails = () => {
   }, [activeTab]);
 
   const handleVote = async (optionId) => {
+    if (votedOptionId === optionId) {
+      // Toggle off / retract vote if clicking the same voted option
+      handleRemoveVote();
+      return;
+    }
     try {
       const res = await api.post(`/api/decisions/${id}/votes`, { optionId, voteType: 'UPVOTE' });
       if (res.data?.success) {
         setVotedOptionId(optionId);
+        showToast("Vote recorded!", "success");
         await fetchDecisionDetails();
       }
     } catch (err) {
       console.error("Failed to cast vote:", err);
       showToast(err.response?.data?.message || "Failed to cast vote.", "error");
+    }
+  };
+
+  const handleRemoveVote = async () => {
+    try {
+      const res = await api.delete(`/api/decisions/${id}/votes`);
+      if (res.data?.success) {
+        setVotedOptionId(null);
+        showToast("Vote retracted successfully.", "info");
+        await fetchDecisionDetails();
+      }
+    } catch (err) {
+      console.error("Failed to remove vote:", err);
+      showToast(err.response?.data?.message || "Failed to retract vote.", "error");
     }
   };
 
@@ -1145,25 +1185,33 @@ const DecisionDetails = () => {
     );
   }
 
+  const storedUserStr = localStorage.getItem('user');
+  let storedUserObj = null;
+  if (storedUserStr) {
+    try { storedUserObj = JSON.parse(storedUserStr); } catch (e) {}
+  }
+  const effectiveUser = currentUser || storedUserObj;
+  const storedRole = localStorage.getItem('role');
+
   const isOwner = Boolean(
-    currentUser && (
-      String(currentUser.id) === String(decision?.userId)
+    effectiveUser && (
+      (decision?.userId && String(effectiveUser.id) === String(decision.userId)) ||
+      (decision?.user?.id && String(effectiveUser.id) === String(decision.user.id)) ||
+      (decision?.user?.username && effectiveUser.username && effectiveUser.username === decision.user.username) ||
+      (decision?.username && effectiveUser.username && effectiveUser.username === decision.username)
     )
   );
   const isAdmin = Boolean(
-    currentUser && (
-      currentUser.role === 'ADMIN' ||
-      currentUser.role === 'admin' ||
-      localStorage.getItem('role') === 'admin'
-    )
+    (effectiveUser && (effectiveUser.role === 'ADMIN' || effectiveUser.role === 'admin' || effectiveUser.role === 'ROLE_ADMIN')) ||
+    (storedRole && (storedRole.toLowerCase() === 'admin' || storedRole.toUpperCase() === 'ROLE_ADMIN'))
   );
   const isCommunityModerator = Boolean(
-    currentUser && (
-      (communityDetails && (String(communityDetails.moderatorId) === String(currentUser.id) || communityDetails.moderatorUsername === currentUser.username)) ||
+    effectiveUser && (
+      (communityDetails && (String(communityDetails.moderatorId) === String(effectiveUser.id) || communityDetails.moderatorUsername === effectiveUser.username)) ||
       (communityMembership && (communityMembership.isModerator || communityMembership.moderator || communityMembership.memberRole === 'MODERATOR'))
     )
   );
-  const isModerator = isOwner || isAdmin || isCommunityModerator;
+  const isModerator = isAdmin || isCommunityModerator;
   const isDiscussionLocked = Boolean(decision?.isDiscussionLocked);
 
   // CLOSED = locked board, anything else (OPEN, ACTIVE, etc.) = open/live
@@ -1175,9 +1223,29 @@ const DecisionDetails = () => {
       
       {/* Back link & Header */}
       <div style={{ marginBottom: '30px' }}>
-        <Link to="/decision-board" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', textDecoration: 'none', marginBottom: '20px' }}>
-          <ArrowLeft size={16} /> Back to Decision Boards
-        </Link>
+        <button
+          onClick={() => {
+            if (isAdmin) {
+              navigate('/admin/dashboard?tab=moderation');
+            } else {
+              navigate('/decision-board');
+            }
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            color: 'var(--text-secondary)',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            marginBottom: '20px',
+            fontSize: '0.95rem',
+            fontFamily: "'Outfit', sans-serif"
+          }}
+        >
+          <ArrowLeft size={16} /> {isAdmin ? 'Back to Admin Moderation' : 'Back to Decision Boards'}
+        </button>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
           <div style={{ flex: 1 }}>
@@ -1209,7 +1277,7 @@ const DecisionDetails = () => {
           </div>
 
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            {!isOwner && (
+            {!isOwner && !isAdmin && (
               <button
                 type="button"
                 onClick={() => setReportModalState({
@@ -1407,7 +1475,7 @@ const DecisionDetails = () => {
                       </div>
 
                       <button 
-                        onClick={() => !isClosed && handleVote(option.id)}
+                        onClick={() => !isClosed && (isVoted ? handleRemoveVote() : handleVote(option.id))}
                         className={isVoted ? 'btn-primary' : 'btn-secondary'}
                         disabled={isClosed && !isVoted}
                         style={{ 
@@ -1429,6 +1497,39 @@ const DecisionDetails = () => {
               </div>
             ) : (
               <p style={{ color: 'var(--text-secondary)' }}>No options have been provided for this decision.</p>
+            )}
+
+            {/* Standalone Separate Action Button Below Options List */}
+            {votedOptionId && !isClosed && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginTop: '12px'
+              }}>
+                <button
+                  type="button"
+                  onClick={handleRemoveVote}
+                  className="btn-secondary"
+                  style={{
+                    color: '#ff4d4d',
+                    borderColor: 'rgba(255, 77, 77, 0.45)',
+                    background: 'rgba(255, 77, 77, 0.1)',
+                    padding: '10px 26px',
+                    fontSize: '0.88rem',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    borderRadius: '12px',
+                    boxShadow: '0 0 18px rgba(255, 77, 77, 0.2)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <X size={16} /> Remove My Vote
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -42,8 +42,25 @@ const Navbar = ({ isDashboard, isCollapsed }) => {
   if (location.pathname === '/login' || location.pathname === '/register') {
     return (
       <nav style={{ position: 'fixed', top: 0, width: '100%', padding: '20px', zIndex: 1000, display: 'flex', justifyContent: 'center' }}>
-        <Link to="/" style={{ fontSize: '1.5rem', fontWeight: 'bold', fontFamily: 'Outfit', textDecoration: 'none' }} className="text-gradient">
-          DECISION_HUB
+        <Link to="/" style={{ fontSize: '1.5rem', fontWeight: 'bold', fontFamily: 'Outfit', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, rgba(0, 245, 255, 0.15) 0%, rgba(255, 0, 255, 0.15) 100%)',
+            border: '1px solid rgba(0, 245, 255, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 0 12px rgba(0, 245, 255, 0.35)'
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#00F5FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="#FF00FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="#00F5FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <span className="text-gradient" style={{ letterSpacing: '0.5px' }}>DECISION_HUB</span>
         </Link>
       </nav>
     );
@@ -145,15 +162,29 @@ const Navbar = ({ isDashboard, isCollapsed }) => {
     }}>
       {/* Left: Logo */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-        <Link to="/" style={{ fontSize: '1.5rem', fontWeight: 'bold', fontFamily: 'Outfit', textDecoration: 'none' }} className="text-gradient">
-          DECISION_HUB
+        <Link to="/" style={{ fontSize: '1.5rem', fontWeight: 'bold', fontFamily: 'Outfit', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: '38px',
+            height: '38px',
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, rgba(0, 245, 255, 0.15) 0%, rgba(255, 0, 255, 0.15) 100%)',
+            border: '1px solid rgba(0, 245, 255, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 0 12px rgba(0, 245, 255, 0.35)'
+          }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#00F5FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="#FF00FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="#00F5FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <span className="text-gradient" style={{ letterSpacing: '0.5px' }}>DECISION_HUB</span>
         </Link>
       </div>
       
-      
-      
-      
-      {/* Middle: Empty space since links were removed */}
+      {/* Middle: Empty space */}
       <div style={{ flex: 1 }}></div>
       
       {/* Right: Actions */}

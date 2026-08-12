@@ -16,8 +16,9 @@ import {
   Tooltip,
   Legend
 } from 'recharts';
-import { Users, Vote, CheckCircle, TrendingUp, Layers, RefreshCw } from 'lucide-react';
+import { Users, Vote, CheckCircle, TrendingUp, Layers, RefreshCw, FileText } from 'lucide-react';
 import api from '../../../api/api';
+import ReportGeneratorModal from '../../../components/ReportGeneratorModal';
 
 const PIE_COLORS = ['#00F5FF', '#FF007F', '#8A2BE2', '#FF9500', '#00E676'];
 const tooltipStyle = {
@@ -31,6 +32,7 @@ const Analytics = () => {
   const [period, setPeriod] = useState('monthly');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const fetchAnalytics = async (selectedPeriod) => {
     setLoading(true);
@@ -118,6 +120,20 @@ const Analytics = () => {
             }}
           >
             <RefreshCw size={14} className={loading ? 'spin' : ''} /> Refresh
+          </button>
+
+          <button
+            onClick={() => setShowReportModal(true)}
+            className="btn-primary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 18px',
+              fontSize: '0.84rem'
+            }}
+          >
+            <FileText size={15} /> Generate Report
           </button>
         </div>
       </div>
@@ -300,6 +316,14 @@ const Analytics = () => {
           </div>
         </div>
       )}
+
+      {/* Admin Analytics Report Generator Modal */}
+      <ReportGeneratorModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        analyticsData={data}
+        period={period}
+      />
 
     </div>
   );

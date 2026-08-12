@@ -55,12 +55,93 @@ const Notifications = () => {
       }
     }
 
-    // Navigate to relevant entity if available
+    const typeStr = String(notification.type || '').toUpperCase();
+    const titleStr = String(notification.title || '').toLowerCase();
+    const messageStr = String(notification.message || '').toLowerCase();
+
+    // Check if logged-in user is an Admin
+    const roleStr = String(localStorage.getItem('role') || '').toLowerCase();
+    const storedUser = localStorage.getItem('user');
+    let userRole = roleStr;
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        if (parsed.role) userRole = String(parsed.role).toLowerCase();
+      } catch (e) {}
+    }
+    const isAdminUser = userRole === 'admin' || userRole === 'role_admin';
+
+    // 1. Feedback Notifications -> /feedback?tab=submissions (for Admins) or /feedback?tab=history (for Users)
+    const isFeedbackNotification = 
+      typeStr.startsWith('FEEDBACK_') || 
+      titleStr.includes('feedback') || 
+      titleStr.includes('bug') || 
+      messageStr.includes('feedback') || 
+      messageStr.includes('bug status') ||
+      messageStr.includes('status updated');
+
+    if (isFeedbackNotification) {
+      if (isAdminUser) {
+        navigate('/feedback?tab=submissions');
+      } else {
+        navigate('/feedback?tab=history');
+      }
+      return;
+    }
+
+    // 2. Moderation & Report Notifications -> /admin/dashboard?tab=moderation (for Admins)
+    const isModerationOrReport = 
+      typeStr === 'MODERATOR_ACTION' || 
+      typeStr === 'WARNING' || 
+      typeStr.startsWith('REPORT_') ||
+      titleStr.includes('report') ||
+      titleStr.includes('flag') ||
+      messageStr.includes('reported') ||
+      messageStr.includes('flagged');
+
+    if (isModerationOrReport) {
+      if (isAdminUser) {
+        navigate('/admin/dashboard?tab=moderation');
+      } else {
+        navigate('/decision-board');
+      }
+      return;
+    }
+
+    // 3. User Account / Registration Notifications (for Admins) -> /admin/dashboard?tab=users
+    const isUserManagementNotification = 
+      typeStr.startsWith('USER_') ||
+      titleStr.includes('user registration') ||
+      titleStr.includes('user account') ||
+      messageStr.includes('user account');
+
+    if (isUserManagementNotification && isAdminUser) {
+      navigate('/admin/dashboard?tab=users');
+      return;
+    }
+
+    // 4. Deleted Community -> Main /communities list
+    if (typeStr === 'COMMUNITY_DELETED') {
+      navigate('/communities');
+      return;
+    }
+
+    // 5. Decision Board Notifications -> /decision-board/:id
     if (notification.decisionId) {
       const hash = notification.referenceId ? `#comment-${notification.referenceId}` : '';
-      navigate(`/decision/${notification.decisionId}${hash}`);
-    } else if (notification.communityId) {
+      navigate(`/decision-board/${notification.decisionId}${hash}`);
+      return;
+    }
+
+    // 6. Community Notifications -> /communities/:id or /admin/dashboard?tab=communities
+    if (notification.communityId) {
       navigate(`/communities/${notification.communityId}`);
+      return;
+    }
+
+    // Fallback for Admin notifications without specific IDs -> Admin Dashboard Analytics
+    if (isAdminUser) {
+      navigate('/admin/dashboard?tab=analytics');
     }
   };
 

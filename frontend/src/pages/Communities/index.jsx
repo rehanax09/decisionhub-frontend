@@ -111,6 +111,10 @@ const Communities = () => {
           }
           return c;
         }));
+
+        const currentJoined = JSON.parse(localStorage.getItem(`joined_comm_${currentUser.id}`) || "[]");
+        const updated = currentJoined.filter(x => x !== id);
+        localStorage.setItem(`joined_comm_${currentUser.id}`, JSON.stringify(updated));
       } else {
         // Join community
         const res = await api.post(`/api/communities/${id}/join`);
@@ -124,6 +128,11 @@ const Communities = () => {
             }
             return c;
           }));
+
+          const currentJoined = JSON.parse(localStorage.getItem(`joined_comm_${currentUser.id}`) || "[]");
+          if (!currentJoined.includes(id)) {
+            localStorage.setItem(`joined_comm_${currentUser.id}`, JSON.stringify([...currentJoined, id]));
+          }
         } else {
            setCommunities(prev => prev.map(c => {
              if (c.id === id) {
@@ -245,13 +254,15 @@ const Communities = () => {
             <div style={{ position: 'absolute', right: '14px', top: '15px', pointerEvents: 'none', width: '0', height: '0', borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--text-secondary)' }}></div>
           </div>
 
-          <button 
-            className="btn-primary pulse-button" 
-            onClick={() => setShowModal(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '44px', padding: '0 20px', borderRadius: 'var(--radius-xl)' }}
-          >
-            <PlusCircle size={18} /> Create Group
-          </button>
+          {!(currentUser?.role === 'ADMIN' || currentUser?.role === 'admin' || localStorage.getItem('role') === 'admin') && (
+            <button 
+              className="btn-primary pulse-button" 
+              onClick={() => setShowModal(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '44px', padding: '0 20px', borderRadius: 'var(--radius-xl)' }}
+            >
+              <PlusCircle size={18} /> Create Group
+            </button>
+          )}
         </div>
       </div>
 

@@ -17,7 +17,6 @@ import Analytics      from './sections/Analytics';
 import UserManagement from './sections/UserManagement';
 import Communities    from './sections/Communities';
 import DecisionBoards from './sections/DecisionBoards';
-import Polls          from './sections/Polls';
 import Moderation     from './sections/Moderation';
 import Notifications  from './sections/Notifications';
 import AdminSettings  from './sections/AdminSettings';
@@ -27,7 +26,6 @@ const TABS = [
   { id: 'users',          label: 'User Management',    icon: Users,           component: UserManagement },
   { id: 'communities',    label: 'Community Management', icon: Globe,         component: Communities    },
   { id: 'boards',         label: 'Decision Board Management', icon: CheckSquare, component: DecisionBoards },
-  { id: 'polls',          label: 'Poll Management',    icon: BarChart2,       component: Polls          },
   { id: 'moderation',     label: 'Reports & Moderation', icon: AlertTriangle, component: Moderation     },
   { id: 'notifications',  label: 'Notifications',      icon: Bell,            component: Notifications  },
   { id: 'settings',       label: 'Settings',           icon: Settings,        component: AdminSettings  },
