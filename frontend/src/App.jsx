@@ -16,6 +16,7 @@ import Dashboard from './pages/Dashboard';
 import DecisionBoards from './pages/DecisionBoards';
 import CreateDecision from './pages/CreateDecision';
 import DecisionDetails from './pages/DecisionDetails';
+import Polls from './pages/Polls';
 import Communities from './pages/Communities';
 import CommunityDetails from './pages/CommunityDetails';
 import Profile from './pages/Profile';
@@ -110,6 +111,7 @@ function App() {
             <Route path="/decision-board/:id" element={<DecisionDetails />} />
             <Route path="/create-decision" element={<CreateDecision />} />
             <Route path="/decision/:id" element={<DecisionDetails />} />
+            <Route path="/polls" element={<Polls />} />
             <Route path="/decision/:id/compare" element={<ComparisonPage />} />
             <Route path="/decision/:id/discuss" element={<Discussion />} />
             <Route path="/communities" element={<Communities />} />
