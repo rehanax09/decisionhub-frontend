@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { CheckSquare, Trash2 } from 'lucide-react';
 import api from '../../../api/api';
+import { useToast } from '../../../context/ToastContext';
+import ConfirmModal from '../../../components/ConfirmModal';
 
 const DecisionBoards = () => {
+  const { showToast } = useToast();
   const [boards, setBoards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
+  const [boardToDelete, setBoardToDelete] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,17 +50,22 @@ const DecisionBoards = () => {
     fetchData();
   }, []);
 
-  const deleteBoard = async (id) => {
-    if (window.confirm('Are you sure you want to delete this decision board permanently?')) {
-      try {
-        const token = localStorage.getItem('token');
-        await api.delete(`/api/decisions/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-        setBoards(prev => prev.filter(x => x.id !== id));
-        alert("Decision board deleted successfully.");
-      } catch (err) {
-        console.error("Failed to delete decision board:", err);
-        alert(err.response?.data?.message || "Could not delete decision board.");
-      }
+  const handleDeleteBoardClick = (id) => {
+    setBoardToDelete(id);
+  };
+
+  const handleConfirmDeleteBoard = async () => {
+    if (!boardToDelete) return;
+    const id = boardToDelete;
+    setBoardToDelete(null);
+    try {
+      const token = localStorage.getItem('token');
+      await api.delete(`/api/decisions/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      setBoards(prev => prev.filter(x => x.id !== id));
+      showToast("Decision board deleted successfully.", "success");
+    } catch (err) {
+      console.error("Failed to delete decision board:", err);
+      showToast(err.response?.data?.message || "Could not delete decision board.", "error");
     }
   };
 
@@ -141,7 +150,7 @@ const DecisionBoards = () => {
                     </td>
                     <td style={{ padding: '14px 16px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{b.created}</td>
                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                      <button onClick={() => deleteBoard(b.id)} title="Delete" style={{ marginLeft: 'auto', padding: '6px', borderRadius: '8px', border: '1px solid rgba(255,0,0,0.3)', background: 'transparent', color: '#ff4444', cursor: 'pointer', display: 'flex' }}><Trash2 size={15}/></button>
+                      <button onClick={() => handleDeleteBoardClick(b.id)} title="Delete" style={{ marginLeft: 'auto', padding: '6px', borderRadius: '8px', border: '1px solid rgba(255,0,0,0.3)', background: 'transparent', color: '#ff4444', cursor: 'pointer', display: 'flex' }}><Trash2 size={15}/></button>
                     </td>
                   </tr>
                 );
@@ -150,6 +159,16 @@ const DecisionBoards = () => {
           </table>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={Boolean(boardToDelete)}
+        title="Delete Decision Board"
+        message="Are you sure you want to permanently delete this decision board? This action cannot be undone."
+        onConfirm={handleConfirmDeleteBoard}
+        onCancel={() => setBoardToDelete(null)}
+        confirmText="Delete Board"
+        type="destructive"
+      />
     </div>
   );
 };

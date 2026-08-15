@@ -43,16 +43,19 @@ const AdminDashboard = () => {
     <div style={{ maxWidth: '1300px', margin: '0 auto', paddingBottom: '60px' }}>
 
       {/* ── Page Header ─────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '32px' }}>
-        <div style={{ padding: '10px', borderRadius: '12px', background: 'rgba(255,0,255,0.1)', border: '1px solid rgba(255,0,255,0.2)' }}>
-          <ShieldAlert color="var(--neon-pink)" size={26} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ padding: '10px', borderRadius: '12px', background: 'rgba(255,0,255,0.1)', border: '1px solid rgba(255,0,255,0.2)' }}>
+            <ShieldAlert color="var(--neon-pink)" size={26} />
+          </div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '1.9rem', fontFamily: 'Outfit' }}>Admin Console</h1>
+            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+              Elevated privilege session · <span style={{ color: 'var(--neon-cyan)', fontWeight: '600' }}>{currentTabInfo.label}</span>
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '1.9rem', fontFamily: 'Outfit' }}>Admin Console</h1>
-          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
-            Elevated privilege session · <span style={{ color: 'var(--neon-cyan)', fontWeight: '600' }}>{currentTabInfo.label}</span>
-          </p>
-        </div>
+
       </div>
 
       {/* ── Active Section ──────────────────────────────────────────── */}

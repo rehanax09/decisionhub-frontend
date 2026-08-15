@@ -4,6 +4,7 @@ import {
   RefreshCw, Filter, ShieldCheck, Eye, MessageSquare, AlertCircle, ExternalLink, X, FileText, User
 } from 'lucide-react';
 import api from '../../../api/api';
+import { useToast } from '../../../context/ToastContext';
 
 const typeColors = {
   BOARD: 'var(--neon-cyan)',
@@ -15,6 +16,7 @@ const typeColors = {
 };
 
 const Moderation = () => {
+  const { showToast } = useToast();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('ALL');
@@ -54,9 +56,10 @@ const Moderation = () => {
       if (detailModal && detailModal.id === id) {
         setDetailModal(null);
       }
+      showToast("Report ticket dismissed successfully.", "info");
     } catch (err) {
       console.error('Failed to dismiss report:', err);
-      alert('Failed to dismiss report.');
+      showToast(err.response?.data?.message || 'Failed to dismiss report.', 'error');
     }
   };
 
@@ -77,9 +80,10 @@ const Moderation = () => {
       }
       setActionModal(null);
       setModalNotes('');
+      showToast(`Moderation action [${actionType}] executed successfully!`, 'success');
     } catch (err) {
       console.error('Failed to execute moderation action:', err);
-      alert(err.response?.data?.message || 'Failed to execute moderation action on backend.');
+      showToast(err.response?.data?.message || 'Failed to execute moderation action on backend.', 'error');
     } finally {
       setActionLoading(false);
     }

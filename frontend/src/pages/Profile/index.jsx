@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Settings, Award, Edit3, Grid, MessageSquare, Bookmark, CheckCircle, Clock } from 'lucide-react';
+import { User, Settings, Award, Edit3, Grid, MessageSquare, CheckCircle, Clock } from 'lucide-react';
 import api from '../../api/api';
 
 const Profile = () => {
@@ -153,7 +153,7 @@ const Profile = () => {
             </span>
           </div>
           <p style={{ color: 'var(--text-secondary)', marginTop: '16px', fontSize: '1.05rem', lineHeight: '1.5', maxWidth: '600px' }}>
-            Registered email: <span style={{ color: 'var(--text-primary)' }}>{currentUser.email}</span>. Make sure your grid preferences match the network requirements.
+            Registered email: <span style={{ color: 'var(--text-primary)' }}>{currentUser.email}</span>
           </p>
         </div>
       </div>
@@ -183,8 +183,7 @@ const Profile = () => {
       <div style={{ display: 'flex', gap: '30px', borderBottom: '1px solid var(--glass-border)', marginBottom: '30px' }}>
         {[
           { id: 'activity', label: 'Recent Activity', icon: <Clock size={18} /> },
-          { id: 'decisions', label: 'My Decisions', icon: <Grid size={18} /> },
-          { id: 'bookmarks', label: 'Bookmarks', icon: <Bookmark size={18} /> }
+          { id: 'decisions', label: 'My Decisions', icon: <Grid size={18} /> }
         ].map(tab => (
           <button
             key={tab.id}
@@ -262,16 +261,6 @@ const Profile = () => {
             </div>
           )
         )}
-
-        {/* Bookmarks Tab */}
-        {activeTab === 'bookmarks' && (
-          <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-secondary)' }}>
-            <Bookmark size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
-            <h3>No bookmarks yet</h3>
-            <p>Save polls and decisions to easily find them later.</p>
-          </div>
-        )}
-
       </div>
     </div>
   );

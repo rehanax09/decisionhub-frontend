@@ -3,6 +3,7 @@ import { Users, MessageSquare, TrendingUp, Search, PlusCircle, CheckCircle, Shie
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/api';
 import { useToast } from '../../context/ToastContext';
+import { useDynamicCategories } from '../../utils/categoryUtils';
 
 const CATEGORY_STYLES = {
   Technology: { color: 'var(--neon-cyan)', icon: <TrendingUp size={24} />, badgeClass: 'badge-cyan' },
@@ -17,6 +18,7 @@ const DEFAULT_STYLE = { color: 'var(--neon-cyan)', icon: <Users size={24} />, ba
 const Communities = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const dynamicCategories = useDynamicCategories();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [communities, setCommunities] = useState([]);
@@ -27,7 +29,7 @@ const Communities = () => {
   // Create community modal state
   const [showModal, setShowModal] = useState(false);
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('Technology');
+  const [category, setCategory] = useState(dynamicCategories[0] || 'Technology');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -245,11 +247,11 @@ const Communities = () => {
               }}
             >
               <option value="All" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>All Categories</option>
-              <option value="Technology" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Technology</option>
-              <option value="Finance" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Finance</option>
-              <option value="Career" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Career</option>
-              <option value="Travel" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Travel</option>
-              <option value="Lifestyle" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Lifestyle</option>
+              {dynamicCategories.map(cat => (
+                <option key={cat} value={cat} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+                  {cat}
+                </option>
+              ))}
             </select>
             <div style={{ position: 'absolute', right: '14px', top: '15px', pointerEvents: 'none', width: '0', height: '0', borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--text-secondary)' }}></div>
           </div>
@@ -500,16 +502,16 @@ const Communities = () => {
                 </label>
                 <div style={{ position: 'relative' }}>
                   <select
-                    value={category}
+                    value={category || (dynamicCategories[0] || 'Technology')}
                     onChange={(e) => setCategory(e.target.value)}
                     className="input-premium"
                     style={{ appearance: 'none' }}
                   >
-                    <option value="Technology" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Technology</option>
-                    <option value="Finance" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Finance</option>
-                    <option value="Career" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Career</option>
-                    <option value="Travel" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Travel</option>
-                    <option value="Lifestyle" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Lifestyle</option>
+                    {dynamicCategories.map(cat => (
+                      <option key={cat} value={cat} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+                        {cat}
+                      </option>
+                    ))}
                   </select>
                   <div style={{ position: 'absolute', right: '16px', top: '18px', pointerEvents: 'none', width: '0', height: '0', borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--text-secondary)' }}></div>
                 </div>

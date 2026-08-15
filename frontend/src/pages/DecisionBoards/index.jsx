@@ -2,12 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ThumbsUp, Plus, Search, Filter } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../../api/api';
+import { useDynamicCategories } from '../../utils/categoryUtils';
 
 const DecisionBoard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const searchQuery = searchParams.get('search') || '';
+  const dynamicCategories = useDynamicCategories();
   
   const [decisions, setDecisions] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -91,11 +93,11 @@ const DecisionBoard = () => {
             }}
           >
             <option value="All" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>All Categories</option>
-            <option value="Technology" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Technology</option>
-            <option value="Finance" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Finance</option>
-            <option value="Career" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Career</option>
-            <option value="Travel" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Travel</option>
-            <option value="Lifestyle" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Lifestyle</option>
+            {dynamicCategories.map(cat => (
+              <option key={cat} value={cat} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+                {cat}
+              </option>
+            ))}
           </select>
           <div style={{ position: 'absolute', right: '14px', top: '15px', pointerEvents: 'none', width: '0', height: '0', borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--text-secondary)' }}></div>
         </div>

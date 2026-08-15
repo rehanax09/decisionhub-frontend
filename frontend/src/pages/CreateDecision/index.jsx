@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Plus, Trash2, Globe, Users, ChevronDown, Cpu, DollarSign, Briefcase, Compass, Heart } from 'lucide-react';
+import { Plus, Trash2, Globe, Users, ChevronDown, Cpu, DollarSign, Briefcase, Compass, Heart, Tag } from 'lucide-react';
 import api from '../../api/api';
 import { useToast } from '../../context/ToastContext';
+import { useDynamicCategories } from '../../utils/categoryUtils';
 
 const parseNumericValue = (str) => {
   if (!str) return null;
@@ -11,14 +12,6 @@ const parseNumericValue = (str) => {
   return isNaN(num) ? null : num;
 };
 
-const categories = [
-  { value: 'Technology', label: 'Technology', icon: Cpu, badgeClass: 'badge-cyan', iconColor: 'var(--neon-cyan)' },
-  { value: 'Finance', label: 'Finance', icon: DollarSign, badgeClass: 'badge-success', iconColor: 'var(--success)' },
-  { value: 'Career', label: 'Career', icon: Briefcase, badgeClass: 'badge-purple', iconColor: 'var(--accent-purple)' },
-  { value: 'Travel', label: 'Travel', icon: Compass, badgeClass: 'badge-secondary', iconColor: 'var(--text-secondary)' },
-  { value: 'Lifestyle', label: 'Lifestyle', icon: Heart, badgeClass: 'badge-pink', iconColor: 'var(--neon-pink)' }
-];
-
 const CreateDecision = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -26,9 +19,23 @@ const CreateDecision = () => {
   const searchParams = new URLSearchParams(location.search);
   const paramCommunityId = searchParams.get('communityId');
   
+  const dynamicCategories = useDynamicCategories();
+  const categories = dynamicCategories.map(cat => {
+    const lower = cat.toLowerCase();
+    let icon = Tag;
+    let badgeClass = 'badge-cyan';
+    let iconColor = 'var(--neon-cyan)';
+    if (lower.includes('tech')) { icon = Cpu; badgeClass = 'badge-cyan'; iconColor = 'var(--neon-cyan)'; }
+    else if (lower.includes('finance') || lower.includes('money')) { icon = DollarSign; badgeClass = 'badge-success'; iconColor = 'var(--success)'; }
+    else if (lower.includes('career') || lower.includes('job')) { icon = Briefcase; badgeClass = 'badge-purple'; iconColor = 'var(--accent-purple)'; }
+    else if (lower.includes('travel')) { icon = Compass; badgeClass = 'badge-secondary'; iconColor = 'var(--text-secondary)'; }
+    else if (lower.includes('life')) { icon = Heart; badgeClass = 'badge-pink'; iconColor = 'var(--neon-pink)'; }
+    return { value: cat, label: cat, icon, badgeClass, iconColor };
+  });
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('Technology');
+  const [category, setCategory] = useState(dynamicCategories[0] || 'Technology');
   const [communityId, setCommunityId] = useState(paramCommunityId || '');
   const [myCommunities, setMyCommunities] = useState([]);
   const [criteria, setCriteria] = useState([]);

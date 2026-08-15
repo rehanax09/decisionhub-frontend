@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../../api/api';
 import { useToast } from '../../../context/ToastContext';
 import ConfirmModal from '../../../components/ConfirmModal';
+import { saveCategories, useDynamicCategories } from '../../../utils/categoryUtils';
 
 const THEMES = [
   {
@@ -69,10 +70,7 @@ const AdminSettings = () => {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   // ─── 1. Category State ────────────────────────────────────────────
-  const [categories, setCategories] = useState(() => {
-    const saved = localStorage.getItem('decisionhub_admin_categories');
-    return saved ? JSON.parse(saved) : ['Technology', 'Finance', 'Career', 'Lifestyle', 'Education', 'General'];
-  });
+  const categories = useDynamicCategories();
   const [newCat, setNewCat] = useState('');
 
   // ─── 2. Theme State ───────────────────────────────────────────────
@@ -108,9 +106,8 @@ const AdminSettings = () => {
       return;
     }
     const updated = [...categories, cat];
-    setCategories(updated);
+    saveCategories(updated);
     setNewCat('');
-    localStorage.setItem('decisionhub_admin_categories', JSON.stringify(updated));
     showToast(`Category '${cat}' added successfully!`, 'success');
   };
 
@@ -120,8 +117,7 @@ const AdminSettings = () => {
       return;
     }
     const updated = categories.filter(c => c !== cat);
-    setCategories(updated);
-    localStorage.setItem('decisionhub_admin_categories', JSON.stringify(updated));
+    saveCategories(updated);
     showToast(`Category '${cat}' removed.`, 'info');
   };
 

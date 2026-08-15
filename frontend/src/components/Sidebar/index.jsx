@@ -166,7 +166,55 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
       </nav>
 
       <div style={{ padding: '0 12px', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {(() => {
+          let userObj = null;
+          try { userObj = JSON.parse(localStorage.getItem('user')); } catch (e) {}
+          const handle = userObj?.username || localStorage.getItem('username') || 'Account';
+          const userRole = userObj?.role || role || 'USER';
 
+          return (
+            <div 
+              className="glass-panel" 
+              style={{
+                padding: isCollapsed ? '10px 0' : '10px 12px',
+                borderRadius: '10px',
+                marginBottom: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: isCollapsed ? 'center' : 'flex-start',
+                gap: '10px',
+                background: 'rgba(0, 245, 255, 0.05)',
+                border: '1px solid rgba(0, 245, 255, 0.2)'
+              }}
+              title={`Logged in as @${handle}`}
+            >
+              <div style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                background: 'rgba(0, 245, 255, 0.15)',
+                border: '1px solid rgba(0, 245, 255, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--neon-cyan)',
+                fontSize: '0.8rem',
+                fontWeight: 'bold',
+                flexShrink: 0
+              }}>
+                {handle.substring(0, 1).toUpperCase()}
+              </div>
+
+              {!isCollapsed && (
+                <div style={{ overflow: 'hidden', textAlign: 'left', lineHeight: '1.2' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    @{handle}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         <button 
           onClick={() => {

@@ -6,6 +6,7 @@ import api from '../../api/api';
 import { useToast } from '../../context/ToastContext';
 import ConfirmModal from '../../components/ConfirmModal';
 import ReportModal from '../../components/ReportModal';
+import { useDynamicCategories } from '../../utils/categoryUtils';
 
 const parseNumericValue = (str) => {
   if (!str) return null;
@@ -409,6 +410,7 @@ const DecisionDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const dynamicCategories = useDynamicCategories();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState(null);
   const [editingCommentId, setEditingCommentId] = useState(null);
@@ -1211,7 +1213,7 @@ const DecisionDetails = () => {
       (communityMembership && (communityMembership.isModerator || communityMembership.moderator || communityMembership.memberRole === 'MODERATOR'))
     )
   );
-  const isModerator = isAdmin || isCommunityModerator;
+  const isModerator = isOwner || isCommunityModerator;
   const isDiscussionLocked = Boolean(decision?.isDiscussionLocked);
 
   // CLOSED = locked board, anything else (OPEN, ACTIVE, etc.) = open/live
@@ -1604,10 +1606,10 @@ const DecisionDetails = () => {
                 </div>
                 <div>
                   <div style={{ fontWeight: 600, color: 'var(--neon-pink)', fontSize: '0.92rem' }}>
-                    Discussion is Locked by Moderator
+                    Discussion is Locked
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    New comments and replies are restricted to community moderators and administrators.
+                    New comments and replies are restricted to the decision board owner and community moderators.
                   </div>
                 </div>
               </div>
@@ -1656,7 +1658,7 @@ const DecisionDetails = () => {
           ) : isDiscussionLocked && !isModerator ? (
             <div className="glass-panel" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255, 255, 255, 0.01)', border: '1px dashed rgba(255, 42, 109, 0.3)', borderRadius: '12px' }}>
               <p style={{ margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
-                <Lock size={16} color="var(--neon-pink)" /> You cannot add comments because this discussion has been locked by a moderator.
+                <Lock size={16} color="var(--neon-pink)" /> You cannot add comments because this discussion has been locked by the board owner or community moderator.
               </p>
             </div>
           ) : (
@@ -1664,7 +1666,7 @@ const DecisionDetails = () => {
               <input 
                 type="text"
                 required
-                placeholder={isDiscussionLocked ? "Add moderator comment..." : "Add your feedback to the debate..."}
+                placeholder={isDiscussionLocked ? "Add owner/moderator comment..." : "Add your feedback to the debate..."}
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 style={{
@@ -1917,16 +1919,16 @@ const DecisionDetails = () => {
                 <label style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: '600' }}>Category</label>
                 <div style={{ position: 'relative' }}>
                   <select
-                    value={editCategory || 'Technology'}
+                    value={editCategory || (dynamicCategories[0] || 'Technology')}
                     onChange={(e) => setEditCategory(e.target.value)}
                     className="input-premium"
                     style={{ appearance: 'none' }}
                   >
-                    <option value="Technology" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Technology</option>
-                    <option value="Finance" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Finance</option>
-                    <option value="Career" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Career</option>
-                    <option value="Travel" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Travel</option>
-                    <option value="Lifestyle" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>Lifestyle</option>
+                    {dynamicCategories.map(cat => (
+                      <option key={cat} value={cat} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+                        {cat}
+                      </option>
+                    ))}
                   </select>
                   <div style={{ position: 'absolute', right: '16px', top: '18px', pointerEvents: 'none', width: '0', height: '0', borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--text-secondary)' }}></div>
                 </div>

@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Shield, Trash2, UserCheck, UserX } from 'lucide-react';
 import api from '../../../api/api';
+import { useToast } from '../../../context/ToastContext';
+import ConfirmModal from '../../../components/ConfirmModal';
 
 const UserManagement = () => {
+  const { showToast } = useToast();
   const [users, setUsers]       = useState([]);
   const [search, setSearch]     = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [loading, setLoading]   = useState(true);
+  const [userToDelete, setUserToDelete] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -37,9 +41,10 @@ const UserManagement = () => {
       } else {
         setUsers(prev => prev.map(u => u.id === id ? { ...u, ...(payload || {}) } : u));
       }
+      showToast(`User ${endpoint} updated successfully.`, 'success');
     } catch (err) {
       console.error(`Failed to patch ${endpoint}:`, err);
-      alert(err.response?.data?.message || `Could not update user ${endpoint} on server.`);
+      showToast(err.response?.data?.message || `Could not update user ${endpoint} on server.`, 'error');
     }
   };
 
@@ -55,16 +60,22 @@ const UserManagement = () => {
     patch(id, 'status', { status: newStatus });
   };
   
-  const deleteUser = async (id) => {
-    if (window.confirm('Delete this user permanently?')) {
-      try {
-        const token = localStorage.getItem('token');
-        await api.delete(`/api/admin/users/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-        setUsers(prev => prev.filter(x => x.id !== id));
-      } catch (err) {
-        console.error("Failed to delete user:", err);
-        alert("Could not delete user on server.");
-      }
+  const handleDeleteUserClick = (id) => {
+    setUserToDelete(id);
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    const id = userToDelete;
+    setUserToDelete(null);
+    try {
+      const token = localStorage.getItem('token');
+      await api.delete(`/api/admin/users/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      setUsers(prev => prev.filter(x => x.id !== id));
+      showToast("User deleted successfully.", "success");
+    } catch (err) {
+      console.error("Failed to delete user:", err);
+      showToast("Could not delete user on server.", "error");
     }
   };
 
@@ -140,7 +151,7 @@ const UserManagement = () => {
                           style={{ padding: '6px', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'transparent', color: isAdmin ? 'var(--neon-pink)' : 'var(--neon-cyan)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                           <Shield size={16}/>
                         </button>
-                        <button onClick={() => deleteUser(user.id)} title="Delete user"
+                        <button onClick={() => handleDeleteUserClick(user.id)} title="Delete user"
                           style={{ padding: '6px', borderRadius: '8px', border: '1px solid rgba(220,38,38,0.3)', background: 'transparent', color: '#DC2626', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                           <Trash2 size={16}/>
                         </button>
@@ -157,6 +168,16 @@ const UserManagement = () => {
         )}
       </div>
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '12px' }}>{filtered.length} user(s) shown</p>
+
+      <ConfirmModal
+        isOpen={Boolean(userToDelete)}
+        title="Delete User Account"
+        message="Are you sure you want to permanently delete this user account? This action will execute an ACID purge."
+        onConfirm={handleConfirmDeleteUser}
+        onCancel={() => setUserToDelete(null)}
+        confirmText="Delete User"
+        type="destructive"
+      />
     </div>
   );
 };

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Download, FileText, PieChart, Users, ShieldAlert, Loader2 } from 'lucide-react';
 import api from '../../api/api';
+import { useToast } from '../../context/ToastContext';
 
 const Reports = () => {
+  const { showToast } = useToast();
   const [downloading, setDownloading] = useState({});
 
   const reports = [
@@ -63,7 +65,7 @@ const Reports = () => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error(`Failed to export report ${type}:`, err);
-      alert('Failed to generate report export. Please ensure you are logged in.');
+      showToast('Failed to generate report export. Please ensure you are logged in.', 'error');
     } finally {
       setDownloading(prev => ({ ...prev, [key]: false }));
     }

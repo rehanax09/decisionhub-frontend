@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { BarChart2, Clock, Users, PlusCircle, X } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
+import { useDynamicCategories } from '../../utils/categoryUtils';
 
 const Polls = () => {
+  const { showToast } = useToast();
+  const dynamicCategories = useDynamicCategories();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newPoll, setNewPoll] = useState({
     title: '',
-    category: 'Tech',
+    category: dynamicCategories[0] || 'Technology',
     options: ['', ''],
   });
 
@@ -98,7 +102,7 @@ const Polls = () => {
       });
 
     if (newPoll.title.trim() === '' || formattedOptions.length < 2) {
-      alert("Please enter a question and at least 2 options.");
+      showToast("Please enter a question and at least 2 options.", "warning");
       return;
     }
 
@@ -251,21 +255,15 @@ const Polls = () => {
               <div>
                 <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '8px', fontSize: '0.9rem' }}>Category</label>
                 <select 
-                  value={newPoll.category}
+                  value={newPoll.category || (dynamicCategories[0] || 'Technology')}
                   onChange={(e) => setNewPoll({...newPoll, category: e.target.value})}
                   style={{ width: '100%', padding: '12px 16px', background: 'var(--input-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', appearance: 'none' }}
                 >
-                  <option value="Tech" style={{background: 'var(--bg-primary)'}}>Tech</option>
-                  <option value="Career" style={{background: 'var(--bg-primary)'}}>Career</option>
-                  <option value="Finance" style={{background: 'var(--bg-primary)'}}>Finance</option>
-                  <option value="Lifestyle" style={{background: 'var(--bg-primary)'}}>Lifestyle</option>
-                  <option value="Health" style={{background: 'var(--bg-primary)'}}>Health</option>
-                  <option value="Education" style={{background: 'var(--bg-primary)'}}>Education</option>
-                  <option value="Entertainment" style={{background: 'var(--bg-primary)'}}>Entertainment</option>
-                  <option value="Sports" style={{background: 'var(--bg-primary)'}}>Sports</option>
-                  <option value="Politics" style={{background: 'var(--bg-primary)'}}>Politics</option>
-                  <option value="Science" style={{background: 'var(--bg-primary)'}}>Science</option>
-                  <option value="Gaming" style={{background: 'var(--bg-primary)'}}>Gaming</option>
+                  {dynamicCategories.map(cat => (
+                    <option key={cat} value={cat} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+                      {cat}
+                    </option>
+                  ))}
                 </select>
               </div>
 

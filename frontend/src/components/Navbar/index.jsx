@@ -15,7 +15,30 @@ const Navbar = ({ isDashboard, isCollapsed }) => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  const [userProfile, setUserProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem('user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
   useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await api.get('/api/users/me');
+        if (res.data?.success && res.data.data) {
+          const user = res.data.data;
+          setUserProfile(user);
+          localStorage.setItem('user', JSON.stringify(user));
+          document.title = 'DecisionHub';
+        }
+      } catch (err) {
+        // fail silently
+      }
+    };
+
     const fetchUnreadCount = async () => {
       try {
         const res = await api.get('/api/notifications/unread-count');
@@ -28,7 +51,9 @@ const Navbar = ({ isDashboard, isCollapsed }) => {
         // Silently catch if unauthenticated
       }
     };
+
     if (localStorage.getItem('token')) {
+      fetchUser();
       fetchUnreadCount();
       const interval = setInterval(fetchUnreadCount, 30000);
       return () => clearInterval(interval);
@@ -136,7 +161,11 @@ const Navbar = ({ isDashboard, isCollapsed }) => {
               </span>
             )}
           </Link>
-          <Link to="/profile" style={{ background: 'transparent', border: 'none', color: 'var(--neon-cyan)', cursor: 'pointer' }}>
+          <Link 
+            to="/profile" 
+            style={{ background: 'transparent', border: 'none', color: 'var(--neon-cyan)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            title={`@${userProfile?.username || localStorage.getItem('username') || 'Account'}`}
+          >
             <User size={24} />
           </Link>
         </div>

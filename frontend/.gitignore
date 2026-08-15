@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Test runner scripts (Ignored by Git)
+e2e_live_api_test.*
+run_e2e_api_test.bat
+e2e_api_test_runner.js
